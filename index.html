@@ -236,7 +236,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
    маяки баз, погода (день/ночь + дождь/туман), HUD-подписи.
    ============================================================ */
 
-const GX = 288, GZ = 880;              // карта удлинена — все регионы влезают без конфликтов
+const GX = 400, GZ = 880;              // карта расширена по X — Затон не обрезается
 const TILE = 1;                        // размер вокселя
 const HALF_X = (GX * TILE) / 2;
 const HALF_Z = (GZ * TILE) / 2;
@@ -256,7 +256,7 @@ const FACTIONS = {
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
-  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      },
+  { en:'ZATON',         ru:'Затон',          nx:0.18, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      },
   { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.055, fac:'military', base:false, biome:'city'       },
   { en:'JUPITER',       ru:'Юпитер',         nx:0.14, nz:0.235, fac:'mercs',    base:false, biome:'waste'      },
   { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.135, fac:'monolith', base:false, biome:'city'       },
@@ -289,6 +289,10 @@ function zoneWorld(z) {
   return { x: (z.nx - 0.5) * GX * TILE, z: (z.nz - 0.5) * GZ * TILE };
 }
 ZONES.forEach((z, i) => { const w = zoneWorld(z); z.wx = w.x; z.wz = w.z; z.idx = i; });
+
+// индексы фиксированных регионов — объявляем ДО использования в KP-массивах
+const ZATON_IDX   = ZONES.findIndex(z => z.en === 'ZATON');
+const JUPITER_IDX = ZONES.findIndex(z => z.en === 'JUPITER');
 
 /* ---- детерминированный шум ---- */
 function hash2(x, y) {
@@ -588,8 +592,7 @@ for (let zi = 0; zi < ZONES.length; zi++) {
 }
 function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner]?.color ?? 0xbfc4b8; }
 
-const ZATON_IDX  = ZONES.findIndex(z => z.en === 'ZATON');
-const JUPITER_IDX = ZONES.findIndex(z => z.en === 'JUPITER');
+// индексы фиксированных регионов (объявлены выше, перед ZATON_KP)
 
 let idx = 0;
 for (let gz = 0; gz < GZ; gz++) {
@@ -1048,6 +1051,7 @@ for (const k of KEYPOINTS) {
   curPivotX = k.wx; curPivotZ = k.wz;
   build(k, rnd);
 }
+const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
 buildings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 buildings.frustumCulled = false;   // иначе меш отсекается по устаревшей bounding sphere
 scene.add(buildings);

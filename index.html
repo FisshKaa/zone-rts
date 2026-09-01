@@ -178,6 +178,23 @@
 <div id="labels"></div>
 <div id="kplabels"></div>
 <div id="kpInfo" class="hud"></div>
+<div id="emission" style="
+  position:fixed;inset:0;z-index:40;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 40%, #ff6a00 0%, #c43a00 30%, #1a0a00 70%, transparent 100%);
+  opacity:0;transition:opacity 0.15s;mix-blend-mode:screen;
+"></div>
+<div id="emissionWhite" style="
+  position:fixed;inset:0;z-index:41;pointer-events:none;
+  background:#fff;opacity:0;transition:opacity 0.08s;
+"></div>
+<div id="emissionText" style="
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:42;pointer-events:none;opacity:0;transition:opacity 0.3s;
+  font-family:'Share Tech Mono',monospace;font-size:28px;letter-spacing:.35em;
+  color:#ff8c00;text-shadow:0 0 30px #ff4400,0 0 60px #ff2200;font-weight:700;
+  text-align:center;
+">⚠ ВЫБРОС ⚠<br><span style="font-size:13px;letter-spacing:.2em;color:#ffaa44">НЕМЕДЛЕННО В УКРЫТИЕ</span>
+</div>
 
 <div id="banner" class="hud"></div>
 
@@ -197,6 +214,7 @@
     <div class="readout"><span class="k">ТОЧКИ</span><span class="v" id="resPt">—</span></div>
     <div class="readout"><span class="k">АНОМАЛИИ</span><span class="v" id="resAnom">—</span></div>
     <button id="weatherBtn">СМЕНИТЬ ПОГОДУ</button>
+    <button id="stormBtn" style="margin-top:4px;width:100%;background:rgba(180,60,20,.18);border-color:rgba(220,80,20,.4);color:#ff8844;">⚠ ВЫБРОС</button>
   </div>
 </div>
 
@@ -901,59 +919,102 @@ function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner
    Типы: 'main' (главный тракт, широкий), 'dirt' (просёлок, узкий), 'path' (тропа, едва видна).
    Изолированных связей нет намеренно: в некоторые локи только через посредника.
    ============================================================ */
-const ROAD_GRAPH = [
-  // === ГЛАВНЫЙ ТРАКТ север→юг (асфальт/грунтовка) ===
-  ['CORDON',          'GARBAGE',          'main'],
-  ['GARBAGE',         'AGROPROM',         'main'],
-  ['AGROPROM',        'ROSTOK',           'main'],
-  ['ROSTOK',          'ARMY WAREHOUSES',  'main'],
-  ['ARMY WAREHOUSES', 'DEADLANDS',        'main'],
-  ['DEADLANDS',       'LABYRINTH',        'main'],
-  ['LABYRINTH',       'RED FOREST',       'main'],
-  ['RED FOREST',      'RADAR',            'main'],
-  ['RADAR',           'C.N.P.P',          'main'],
-
-  // === ЗАПАДНАЯ ВЕТКА (просёлки) ===
-  ['CORDON',          'CROSSROADS',       'dirt'],
-  ['CROSSROADS',      'DARK VALLEY',      'dirt'],
-  ['CROSSROADS',      'YANTAR',           'dirt'],
-  ['DARK VALLEY',     'FACTORY',          'dirt'],
-  ['FACTORY',         'MARSH',            'dirt'],
-  ['MARSH',           'GREAT SWAMP',      'dirt'],
-  ['YANTAR',          'ROSTOK',           'dirt'],  // Янтарь → Бар через болото
-
-  // === СЕВЕРНАЯ ВЕТКА (Зов Припяти) ===
-  ['DEAD CITY',       'LIMANSK-13',       'main'],
-  ['LIMANSK-13',      'ZATON',            'dirt'],
-  ['ZATON',           'JUPITER',          'main'],
-  ['JUPITER',         'PRIPYAT',          'main'],
-  ['PRIPYAT',         'GENERATORS',       'main'],
-  ['GENERATORS',      'C.N.P.P',          'main'],
-
-  // === ПОПЕРЕЧНЫЕ СВЯЗИ ===
-  ['DEAD CITY',       'MARSH',            'dirt'],   // Мёртвый город → Топи
-  ['AGROPROM',        'DARK VALLEY',      'dirt'],   // Агропром → Тёмная долина
-  ['ARMY WAREHOUSES', 'ROSTOK',           'dirt'],   // прямой путь на Бар
-  ['DEADLANDS',       'YANTAR',           'path'],   // тропа через пустошь
-  ['RED FOREST',      'LIMANSK-13',       'path'],   // заражённая тропа
-  ['RADAR',           'PRIPYAT',          'path'],   // тропа Монолита
-
-  // === ТУПИКИ (только через соседа) ===
-  ['CORDON',          'KURCHATOV-37',     'dirt'],   // военный спецпуть на юг
-  ['ARMY WAREHOUSES', 'ZAPOLYE',          'path'],   // просёлок в Заполье
-  ['LABYRINTH',       'DARKSCAPE',        'path'],   // едва заметная тропа
-  ['GARBAGE',         'WAYSTATION',       'dirt'],   // ж/д ветка на Станцию
-  ['CROSSROADS',      'FACTORY',          'path'],   // объездная
+// Несколько вариантов графа дорог — меняются после выброса
+const ROAD_GRAPHS = [
+  // === ВАРИАНТ 0 — до первого выброса (базовый) ===
+  [
+    ['CORDON','GARBAGE','main'],['GARBAGE','AGROPROM','main'],['AGROPROM','ROSTOK','main'],
+    ['ROSTOK','ARMY WAREHOUSES','main'],['ARMY WAREHOUSES','DEADLANDS','main'],
+    ['DEADLANDS','LABYRINTH','main'],['LABYRINTH','RED FOREST','main'],
+    ['RED FOREST','RADAR','main'],['RADAR','C.N.P.P','main'],
+    ['CORDON','CROSSROADS','dirt'],['CROSSROADS','DARK VALLEY','dirt'],
+    ['CROSSROADS','YANTAR','dirt'],['DARK VALLEY','FACTORY','dirt'],
+    ['FACTORY','MARSH','dirt'],['MARSH','GREAT SWAMP','dirt'],
+    ['YANTAR','ROSTOK','dirt'],
+    ['DEAD CITY','LIMANSK-13','main'],['LIMANSK-13','ZATON','dirt'],
+    ['ZATON','JUPITER','main'],['JUPITER','PRIPYAT','main'],
+    ['PRIPYAT','GENERATORS','main'],['GENERATORS','C.N.P.P','main'],
+    ['DEAD CITY','MARSH','dirt'],['AGROPROM','DARK VALLEY','dirt'],
+    ['ARMY WAREHOUSES','ROSTOK','dirt'],['DEADLANDS','YANTAR','path'],
+    ['RED FOREST','LIMANSK-13','path'],['RADAR','PRIPYAT','path'],
+    ['CORDON','KURCHATOV-37','dirt'],['ARMY WAREHOUSES','ZAPOLYE','path'],
+    ['LABYRINTH','DARKSCAPE','path'],['GARBAGE','WAYSTATION','dirt'],
+    ['CROSSROADS','FACTORY','path'],
+  ],
+  // === ВАРИАНТ 1 — выброс обрушил часть дорог, открыл новые ===
+  [
+    ['CORDON','GARBAGE','main'],['GARBAGE','AGROPROM','main'],
+    ['AGROPROM','YANTAR','main'],  // прямой путь к Янтарю (раньше только через Перекрёсток)
+    ['YANTAR','ROSTOK','main'],['ROSTOK','ARMY WAREHOUSES','main'],
+    ['ARMY WAREHOUSES','LABYRINTH','main'],  // Пустошь обрушена — обход через Лабиринт
+    ['LABYRINTH','RADAR','main'],['RADAR','C.N.P.P','main'],
+    ['CORDON','DARK VALLEY','dirt'],  // прямой путь в Тёмную долину
+    ['DARK VALLEY','AGROPROM','dirt'],['DARK VALLEY','FACTORY','dirt'],
+    ['FACTORY','GREAT SWAMP','dirt'],['GREAT SWAMP','MARSH','dirt'],
+    ['DEAD CITY','ZATON','main'],  // прямой путь Мёртвый город → Затон
+    ['ZATON','JUPITER','main'],['JUPITER','LIMANSK-13','dirt'],
+    ['LIMANSK-13','RED FOREST','path'],['RED FOREST','PRIPYAT','main'],
+    ['PRIPYAT','GENERATORS','main'],['GENERATORS','C.N.P.P','main'],
+    ['CORDON','CROSSROADS','dirt'],['CROSSROADS','YANTAR','dirt'],
+    ['DEADLANDS','RADAR','path'],  // новая тропа через пустошь к Радару
+    ['GARBAGE','WAYSTATION','dirt'],['ARMY WAREHOUSES','ZAPOLYE','path'],
+    ['CORDON','KURCHATOV-37','dirt'],
+  ],
+  // === ВАРИАНТ 2 — сильный выброс, половина дорог под завалами ===
+  [
+    ['CORDON','GARBAGE','dirt'],  // главный тракт деградировал
+    ['GARBAGE','ROSTOK','main'],  // Свалка → сразу Бар
+    ['ROSTOK','YANTAR','main'],
+    ['YANTAR','RED FOREST','dirt'],  // через Рыжий лес
+    ['RED FOREST','C.N.P.P','main'],
+    ['CORDON','AGROPROM','dirt'],['AGROPROM','DARK VALLEY','main'],
+    ['DARK VALLEY','ZAPOLYE','dirt'],
+    ['FACTORY','MARSH','main'],['MARSH','GREAT SWAMP','main'],
+    ['CORDON','CROSSROADS','dirt'],['CROSSROADS','ARMY WAREHOUSES','dirt'],
+    ['ARMY WAREHOUSES','DEADLANDS','path'],['DEADLANDS','LABYRINTH','path'],
+    ['LABYRINTH','DARKSCAPE','dirt'],
+    ['ZATON','DEAD CITY','main'],['DEAD CITY','LIMANSK-13','main'],
+    ['LIMANSK-13','PRIPYAT','main'],['PRIPYAT','C.N.P.P','main'],
+    ['JUPITER','RADAR','dirt'],  // Юпитер → Радар (аномальная тропа)
+    ['RADAR','GENERATORS','dirt'],['GENERATORS','PRIPYAT','dirt'],
+    ['CORDON','KURCHATOV-37','path'],['GARBAGE','WAYSTATION','path'],
+  ],
+  // === ВАРИАНТ 3 — после выброса дороги частично восстановились ===
+  [
+    ['CORDON','GARBAGE','main'],['GARBAGE','AGROPROM','main'],
+    ['AGROPROM','ROSTOK','main'],['ROSTOK','ARMY WAREHOUSES','main'],
+    ['ARMY WAREHOUSES','DEADLANDS','dirt'],['DEADLANDS','LABYRINTH','dirt'],
+    ['LABYRINTH','RADAR','main'],['RADAR','C.N.P.P','main'],
+    ['CORDON','CROSSROADS','main'],  // Кордон → Перекрёсток стал главным
+    ['CROSSROADS','YANTAR','main'],['YANTAR','AGROPROM','dirt'],
+    ['CROSSROADS','FACTORY','dirt'],['FACTORY','MARSH','dirt'],
+    ['MARSH','DEAD CITY','main'],  // Топи → Мёртвый город
+    ['DEAD CITY','ZATON','dirt'],['ZATON','JUPITER','main'],
+    ['JUPITER','PRIPYAT','main'],['PRIPYAT','GENERATORS','main'],
+    ['GENERATORS','C.N.P.P','main'],
+    ['LIMANSK-13','RED FOREST','main'],  // Лиманск → Рыжий лес (открылся)
+    ['RED FOREST','RADAR','dirt'],
+    ['DARK VALLEY','ZAPOLYE','dirt'],['ARMY WAREHOUSES','ROSTOK','dirt'],
+    ['CORDON','KURCHATOV-37','main'],  // военный маршрут стал главным
+    ['GARBAGE','WAYSTATION','dirt'],['LABYRINTH','DARKSCAPE','path'],
+  ],
 ];
 
-// Предрасчёт: для каждого ребра храним мировые координаты и ширину
-const ROAD_WIDTH = { main: 3.2, dirt: 1.8, path: 0.9 };
-const _roadSegs = ROAD_GRAPH.map(([a, b, type]) => {
-  const za = ZONES.find(z => z.en === a);
-  const zb = ZONES.find(z => z.en === b);
-  if (!za || !zb) return null;
-  return { ax: za.wx, az: za.wz, bx: zb.wx, bz: zb.wz, w: ROAD_WIDTH[type], type };
-}).filter(Boolean);
+let _roadGraphIdx = 0;
+
+function buildRoadSegs(graphIdx) {
+  const graph = ROAD_GRAPHS[graphIdx % ROAD_GRAPHS.length];
+  const ROAD_WIDTH = { main: 3.2, dirt: 1.8, path: 0.9 };
+  return graph.map(([a, b, type]) => {
+    const za = ZONES.find(z => z.en === a);
+    const zb = ZONES.find(z => z.en === b);
+    if (!za || !zb) return null;
+    return { ax: za.wx, az: za.wz, bx: zb.wx, bz: zb.wz, w: ROAD_WIDTH[type], type };
+  }).filter(Boolean);
+}
+
+let _roadSegs = buildRoadSegs(0);
+const ROAD_GRAPH = ROAD_GRAPHS[0]; // совместимость (используется только как ref)
 
 // Возвращает интенсивность дороги [0..1] в точке (wx,wz)
 function ROAD_COLOR_AT(wx, wz) {
@@ -1223,105 +1284,92 @@ updateTrees(1);   // сразу полностью
    ПРИДОРОЖНЫЕ ОБЪЕКТЫ — столбы, камни, брошенные машины,
    кусты. Расставляются вдоль всех дорог с шагом ~8 юнитов.
    ============================================================ */
-const ROAD_VOX = [];
-function pushRoad(wx, wz, ly, gTop, color) {
-  ROAD_VOX.push({ x: wx, z: wz, layer: ly, ground: gTop, color });
-}
+function buildRoadObjects() {
+  const vox = [];
+  const _rRnd2 = mulberry32(13371337 + _roadGraphIdx * 9999);
+  const ROAD_STEP = 6;
 
-const _rRnd = mulberry32(13371337);
-const ROAD_STEP = 6;   // шаг вдоль сегмента в юнитах
-
-for (const seg of _roadSegs) {
-  const abx = seg.bx - seg.ax, abz = seg.bz - seg.az;
-  const len = Math.sqrt(abx * abx + abz * abz);
-  if (len < 1) continue;
-  const nx_ = abx / len, nz_ = abz / len;   // нормаль вдоль дороги
-  const px = -nz_, pz = nx_;               // перпендикуляр
-
-  const steps = Math.floor(len / ROAD_STEP);
-  for (let si = 1; si < steps; si++) {
-    const t = si / steps;
-    const cx = seg.ax + abx * t, cz = seg.az + abz * t;
-
-    // Каждые 2 шага — пара объектов по обе стороны
-    for (const side of [-1, 1]) {
-      if (_rRnd() > 0.55) continue;   // не на каждой точке
-
-      // отступ от края дороги: 1.5..3.5 юнита
-      const offset = (seg.w + 1.5 + _rRnd() * 2.0) * side;
-      const ox = cx + px * offset + (_rRnd() - 0.5) * 1.5;
-      const oz = cz + pz * offset + (_rRnd() - 0.5) * 1.5;
-
-      if (waterLevelAt(
-        Math.round(ox / TILE + GX / 2 - 0.5),
-        Math.round(oz / TILE + GZ / 2 - 0.5)
-      )) continue;
-
-      const gTop = topAtWorld(ox, oz);
-      const type = _rRnd();
-
-      if (type < 0.30) {
-        // Электрический столб — тонкая высокая стойка
-        const poleH = 4 + Math.floor(_rRnd() * 3);
-        const poleC = new THREE.Color(0x4a3c28).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.08);
-        for (let ly = 0; ly < poleH; ly++) pushRoad(ox, oz, ly, gTop, poleC.clone());
-        // перекладина
-        pushRoad(ox - 0.5, oz, poleH, gTop, poleC.clone());
-        pushRoad(ox + 0.5, oz, poleH, gTop, poleC.clone());
-
-      } else if (type < 0.52) {
-        // Придорожный камень / бетонный блок
-        const bH = 1 + Math.floor(_rRnd() * 2);
-        const bW = 1 + Math.floor(_rRnd() * 2);
-        const rockC = new THREE.Color(_rRnd() < 0.5 ? 0x6a6560 : 0x5a5248).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.07);
-        for (let bx = 0; bx < bW; bx++)
-          for (let ly = 0; ly < bH; ly++)
-            pushRoad(ox + bx - bW / 2, oz, ly, gTop, rockC.clone());
-
-      } else if (type < 0.70) {
-        // Ржавая машина — низкая коробка с кабиной
-        const carC = new THREE.Color([0x7a4a30, 0x5a5a4a, 0x6a4a38, 0x484840][Math.floor(_rRnd() * 4)]).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.06);
-        const angle = _rRnd() * 4 | 0;   // 0..3 ориентации
-        const [dx1, dz1] = angle < 2 ? [2, 0] : [0, 2];
-        for (let i = 0; i < 4; i++) {
-          pushRoad(ox + (i - 1.5) * (dx1 ? 0.7 : 0.3), oz + (i - 1.5) * (dz1 ? 0.7 : 0.3), 0, gTop, carC.clone());
-          pushRoad(ox + (i - 1.5) * (dx1 ? 0.7 : 0.3), oz + (i - 1.5) * (dz1 ? 0.7 : 0.3), 1, gTop, carC.clone());
+  for (const seg of _roadSegs) {
+    const abx = seg.bx - seg.ax, abz = seg.bz - seg.az;
+    const len = Math.sqrt(abx * abx + abz * abz);
+    if (len < 1) continue;
+    const nx_ = abx / len, nz_ = abz / len;
+    const px = -nz_, pz = nx_;
+    const steps = Math.floor(len / ROAD_STEP);
+    for (let si = 1; si < steps; si++) {
+      const t = si / steps;
+      const cx = seg.ax + abx * t, cz = seg.az + abz * t;
+      for (const side of [-1, 1]) {
+        if (_rRnd2() > 0.55) continue;
+        const offset = (seg.w + 1.5 + _rRnd2() * 2.0) * side;
+        const ox = cx + px * offset + (_rRnd2() - 0.5) * 1.5;
+        const oz = cz + pz * offset + (_rRnd2() - 0.5) * 1.5;
+        if (waterLevelAt(Math.round(ox/TILE+GX/2-0.5), Math.round(oz/TILE+GZ/2-0.5))) continue;
+        const gTop = topAtWorld(ox, oz);
+        const type = _rRnd2();
+        if (type < 0.30) {
+          const poleH = 4 + Math.floor(_rRnd2() * 3);
+          const poleC = new THREE.Color(0x4a3c28).offsetHSL(0,0,(_rRnd2()-0.5)*0.08);
+          for (let ly=0;ly<poleH;ly++) vox.push({x:ox,z:oz,ly,gTop,color:poleC.clone()});
+          vox.push({x:ox-0.5,z:oz,ly:poleH,gTop,color:poleC.clone()});
+          vox.push({x:ox+0.5,z:oz,ly:poleH,gTop,color:poleC.clone()});
+        } else if (type < 0.52) {
+          const bH=1+Math.floor(_rRnd2()*2),bW=1+Math.floor(_rRnd2()*2);
+          const rc=new THREE.Color(_rRnd2()<0.5?0x6a6560:0x5a5248).offsetHSL(0,0,(_rRnd2()-0.5)*0.07);
+          for(let bx=0;bx<bW;bx++) for(let ly=0;ly<bH;ly++) vox.push({x:ox+bx-bW/2,z:oz,ly,gTop,color:rc.clone()});
+        } else if (type < 0.70) {
+          const carC=new THREE.Color([0x7a4a30,0x5a5a4a,0x6a4a38,0x484840][Math.floor(_rRnd2()*4)]).offsetHSL(0,0,(_rRnd2()-0.5)*0.06);
+          const [dx1]=_rRnd2()<0.5?[0.7,0]:[0,0.7];
+          for(let i=0;i<4;i++){vox.push({x:ox+(i-1.5)*dx1,z:oz+(i-1.5)*(dx1?0:0.7),ly:0,gTop,color:carC.clone()});vox.push({x:ox+(i-1.5)*dx1,z:oz+(i-1.5)*(dx1?0:0.7),ly:1,gTop,color:carC.clone()});}
+          vox.push({x:ox+dx1*0.7,z:oz+(dx1?0:0.7),ly:2,gTop,color:carC.clone().offsetHSL(0,0,0.05)});
+        } else {
+          const bushC=new THREE.Color(_rRnd2()<0.4?0x2d4220:0x3a4e28).offsetHSL(0,0,(_rRnd2()-0.5)*0.07);
+          const bR=1+Math.floor(_rRnd2()*2);
+          for(let bx=-bR;bx<=bR;bx++) for(let bz2=-bR;bz2<=bR;bz2++) if(Math.hypot(bx,bz2)<=bR&&_rRnd2()>0.2) vox.push({x:ox+bx*0.7,z:oz+bz2*0.7,ly:0,gTop,color:bushC.clone()});
         }
-        // кабина
-        pushRoad(ox + (dx1 ? 0.7 : 0), oz + (dz1 ? 0.7 : 0), 2, gTop, carC.clone().offsetHSL(0, 0, 0.05));
-
-      } else {
-        // Кустарник — пара низких вокселей с зеленью
-        const bushC = new THREE.Color(_rRnd() < 0.4 ? 0x2d4220 : 0x3a4e28).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.07);
-        const bR = 1 + Math.floor(_rRnd() * 2);
-        for (let bx = -bR; bx <= bR; bx++)
-          for (let bz2 = -bR; bz2 <= bR; bz2++)
-            if (Math.hypot(bx, bz2) <= bR && _rRnd() > 0.2)
-              pushRoad(ox + bx * 0.7, oz + bz2 * 0.7, 0, gTop, bushC.clone());
       }
     }
   }
+  return vox;
 }
+
+let ROAD_VOX = buildRoadObjects();
 
 const roadVoxGeo = new THREE.BoxGeometry(0.85, 1, 0.85);
 const roadVoxMat = new THREE.MeshLambertMaterial();
-const roadMesh = new THREE.InstancedMesh(roadVoxGeo, roadVoxMat, Math.max(1, ROAD_VOX.length));
+let roadMesh = new THREE.InstancedMesh(roadVoxGeo, roadVoxMat, Math.max(1, ROAD_VOX.length));
 roadMesh.frustumCulled = false;
 scene.add(roadMesh);
-for (let i = 0; i < ROAD_VOX.length; i++) roadMesh.setColorAt(i, ROAD_VOX[i].color);
-if (ROAD_VOX.length) roadMesh.instanceColor.needsUpdate = true;
 
-// Придорожные объекты — тоже всегда видны
-const roadMaxLayer = ROAD_VOX.reduce((m, v) => Math.max(m, v.layer), 1);
-const roadDummy = new THREE.Object3D();
-for (let i = 0; i < ROAD_VOX.length; i++) {
-  const v = ROAD_VOX[i];
-  roadDummy.position.set(v.x, v.ground + v.layer + 0.5, v.z);
-  roadDummy.scale.set(1, 1, 1);
-  roadDummy.updateMatrix();
-  roadMesh.setMatrixAt(i, roadDummy.matrix);
+function applyRoadVox(vox) {
+  const d = new THREE.Object3D();
+  for (let i = 0; i < vox.length; i++) {
+    const v = vox[i];
+    roadMesh.setColorAt(i, v.color);
+    d.position.set(v.x, v.gTop + (v.ly || v.layer || 0) + 0.5, v.z);
+    d.scale.set(1, 1, 1); d.updateMatrix();
+    roadMesh.setMatrixAt(i, d.matrix);
+  }
+  if (vox.length) roadMesh.instanceColor.needsUpdate = true;
+  roadMesh.instanceMatrix.needsUpdate = true;
+  roadMesh.count = vox.length;
 }
-roadMesh.instanceMatrix.needsUpdate = true;
+applyRoadVox(ROAD_VOX);
+
+// Пересобрать дороги после выброса
+function rebuildRoads() {
+  _roadGraphIdx++;
+  _roadSegs = buildRoadSegs(_roadGraphIdx);
+  ROAD_VOX = buildRoadObjects();
+  // Если новый массив больше старого — пересоздаём меш
+  if (ROAD_VOX.length > roadMesh.instanceMatrix.count) {
+    scene.remove(roadMesh);
+    roadMesh = new THREE.InstancedMesh(roadVoxGeo, roadVoxMat, ROAD_VOX.length);
+    roadMesh.frustumCulled = false;
+    scene.add(roadMesh);
+  }
+  applyRoadVox(ROAD_VOX);
+}
 
 /* ============================================================
    МОНОЛИТ — огромная каменная плита со светящимся проёмом.
@@ -2068,18 +2116,36 @@ let wxTarget = { ...WX.overcast, tintC: new THREE.Color(WX.overcast.tint) };
 let wxName = 'overcast';
 let wxTimer = 0;
 
+const emDiv   = document.getElementById('emission');
+const emWhite = document.getElementById('emissionWhite');
+const emText  = document.getElementById('emissionText');
+let stormPhase = 0, stormT = 0;   // фазы анимации выброса
+
+function triggerEmission() {
+  stormPhase = 1; stormT = 0;
+}
+
 function pickWeather(force) {
   const options = force ? WX_KEYS.filter(k => k !== wxName) : WX_KEYS;
   const weights = { clear: 3, overcast: 3, rain: 2, fog: 2, storm: 1 };
   let pool = [];
   options.forEach(k => { for (let i = 0; i < weights[k]; i++) pool.push(k); });
+  const prev = wxName;
   wxName = pool[Math.floor(Math.random() * pool.length)];
   wxTarget = { ...WX[wxName], tintC: new THREE.Color(WX[wxName].tint) };
   wxTimer = 0;
   document.getElementById('wx').textContent = WX[wxName].label;
+  if (wxName === 'storm') triggerEmission();
 }
 pickWeather(false);
 document.getElementById('weatherBtn').addEventListener('click', () => pickWeather(true));
+document.getElementById('stormBtn').addEventListener('click', () => {
+  wxName = 'storm';
+  wxTarget = { ...WX.storm, tintC: new THREE.Color(WX.storm.tint) };
+  wxTimer = 0;
+  document.getElementById('wx').textContent = WX.storm.label;
+  triggerEmission();
+});
 
 // цвета неба по времени суток (ключевые кадры)
 const SKY = [
@@ -2410,6 +2476,44 @@ function frame() {
     // Аура — медленно дышит
     if (scene.userData.monoBeam) {
       scene.userData.monoBeam.material.opacity = 0.05 + 0.04 * pulse2;
+    }
+  }
+
+  // ---- АНИМАЦИЯ ВЫБРОСА ----
+  if (stormPhase > 0) {
+    stormT += dt;
+    if (stormPhase === 1) {
+      // Фаза 1 (0..1.5с) — нарастание оранжевого зарева
+      const p = Math.min(stormT / 1.5, 1);
+      emDiv.style.opacity = (p * 0.85).toFixed(3);
+      emText.style.opacity = (p > 0.4 ? (p - 0.4) / 0.6 : 0).toFixed(3);
+      if (stormT > 1.5) { stormPhase = 2; stormT = 0; }
+    } else if (stormPhase === 2) {
+      // Фаза 2 (0..0.2с) — ослепляющая белая вспышка
+      const p = Math.min(stormT / 0.2, 1);
+      emWhite.style.opacity = (Math.sin(p * Math.PI)).toFixed(3);
+      emDiv.style.opacity = (0.85 * (1 - p * 0.3)).toFixed(3);
+      if (stormT > 0.2) {
+        stormPhase = 3; stormT = 0;
+        rebuildRoads();   // ← дороги меняются в момент вспышки
+      }
+    } else if (stormPhase === 3) {
+      // Фаза 3 (0..8с) — медленное затухание зарева, текст держится
+      const p = Math.min(stormT / 8, 1);
+      emDiv.style.opacity = (0.85 * (1 - smooth(p))).toFixed(3);
+      emWhite.style.opacity = '0';
+      emText.style.opacity = (stormT < 5 ? 1 : 1 - (stormT - 5) / 3).toFixed(3);
+      // Земля дрожит — небольшой шейк камеры
+      if (stormT < 3) {
+        const shake = (1 - stormT / 3) * 1.5;
+        camera.position.x += (Math.random() - 0.5) * shake;
+        camera.position.z += (Math.random() - 0.5) * shake;
+      }
+      if (stormT > 8) {
+        stormPhase = 0;
+        emDiv.style.opacity = '0';
+        emText.style.opacity = '0';
+      }
     }
   }
 

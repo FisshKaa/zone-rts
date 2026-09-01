@@ -456,9 +456,44 @@ const voxMat = new THREE.MeshLambertMaterial();
 const buildingVox = [];   // {x,z,layer,ground,color, sx,sz}
 
 const concrete = [0x8d8f86, 0x9a9c92, 0x76786f, 0x6a6d64];
+
+function pushVox(wx, wz, layer, gTop, color, zi) {
+  buildingVox.push({ x: wx, z: wz, layer, ground: gTop, color, zone: zi });
+}
+
+// ЧАЭС: узнаваемый лэндмарк — арка НБК + турбинный зал + вентиляционная труба
+function buildCNPP(z, zi) {
+  const gTop = topAtWorld(z.wx, z.wz);
+  const silver = new THREE.Color(0xb9c1c7);
+  const hallC  = new THREE.Color(0x86887f);
+  const cyan   = new THREE.Color(FACTIONS.monolith.color);
+  const R = 6, DEPTH = 3;
+  // арка Нового безопасного конфайнмента — полуцилиндр (оболочка)
+  for (let x = -R; x <= R; x++) {
+    const top = Math.round(Math.sqrt(Math.max(0, R * R - x * x)) * 1.15);
+    for (let zz = -DEPTH; zz <= DEPTH; zz++)
+      for (let ly = 0; ly <= top; ly++) {
+        const shell = (ly === top) || (x === -R || x === R) || (zz === -DEPTH || zz === DEPTH);
+        if (!shell) continue;
+        const c = silver.clone().lerp(cyan, 0.12).offsetHSL(0, 0, (Math.random() - 0.5) * 0.04);
+        pushVox(z.wx + x, z.wz + zz, ly, gTop, c, zi);
+      }
+  }
+  // турбинный зал (длинный, низкий)
+  for (let x = R + 1; x <= R + 9; x++)
+    for (let zz = -2; zz <= 2; zz++)
+      for (let ly = 0; ly < 3; ly++)
+        pushVox(z.wx + x, z.wz + zz, ly, gTop, hallC.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.05), zi);
+  // вентиляционная труба — красно-белая
+  for (let ly = 0; ly < 15; ly++) {
+    const c = (Math.floor(ly / 2) % 2 === 0) ? new THREE.Color(0xcf4a3a) : new THREE.Color(0xe8e2d8);
+    pushVox(z.wx + R + 8, z.wz - 1, ly, gTop, c, zi);
+  }
+}
+
 for (let zi = 0; zi < ZONES.length; zi++) {
   const z = ZONES[zi];
-  if (z.fac === 'neutral' && !z.base) { /* всё равно ставим руины, но пониже */ }
+  if (z.en === 'C.N.P.P') { buildCNPP(z, zi); continue; }
   const rnd = mulberry32(1000 + zi * 97);
   const facCol = z.fac === 'neutral' ? new THREE.Color(0x8a8c82) : new THREE.Color(FACTIONS[z.fac].color);
   const settleSize = z.base ? 5 : (z.fac === 'neutral' ? 2 : 3);
@@ -499,26 +534,29 @@ buildings.instanceColor.needsUpdate = true;
 const maxLayer = buildingVox.reduce((m, v) => Math.max(m, v.layer), 1);
 
 /* ============================================================
-   МАЯКИ БАЗ (видны на плоской карте, гаснут при зуме)
+   МАРКЕРЫ БАЗ И ЗОН (луч только у главных баз)
    ============================================================ */
 const beacons = [];
 const beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 40, 6, 1, true);
 for (const z of ZONES) {
   const c = z.fac === 'neutral' ? 0x8a8c82 : FACTIONS[z.fac].color;
-  const mat = new THREE.MeshBasicMaterial({
-    color: c, transparent: true, opacity: 0.5, depthWrite: false,
-    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-  });
-  const beam = new THREE.Mesh(beamGeo, mat);
   const gTop = topAtWorld(z.wx, z.wz);
-  beam.position.set(z.wx, gTop + 20, z.wz);
-  beam.scale.set(z.base ? 1.6 : 0.9, 1, z.base ? 1.6 : 0.9);
-  scene.add(beam);
-  // светящаяся «шайба» у земли
-  const discMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false });
+  let beam = null, mat = null;
+  if (z.base) {
+    mat = new THREE.MeshBasicMaterial({
+      color: c, transparent: true, opacity: 0.5, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    });
+    beam = new THREE.Mesh(beamGeo, mat);
+    beam.position.set(z.wx, gTop + 20, z.wz);
+    beam.scale.set(1.6, 1, 1.6);
+    scene.add(beam);
+  }
+  // светящаяся «шайба» под поселением — маркер владельца
+  const discMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.7, depthWrite: false });
   const disc = new THREE.Mesh(new THREE.CircleGeometry(z.base ? 3.4 : 2, 20), discMat);
   disc.rotation.x = -Math.PI / 2;
-  disc.position.set(z.wx, gTop + 0.15, z.wz);
+  disc.position.set(z.wx, gTop + 0.12, z.wz);
   scene.add(disc);
   beacons.push({ beam, disc, base: z.base, anomaly: !!z.anomaly, mat, discMat });
 }
@@ -648,7 +686,7 @@ const sectorEl = document.getElementById('sectorTxt');
    ============================================================ */
 const tmpV = new THREE.Vector3();
 const mProj = new THREE.Matrix4();
-let zoom01 = 0, buildReveal = -1;
+let zoom01 = 0, buildReveal = -1, introT = 0;
 const clock = new THREE.Clock();
 
 function updateBuildings(reveal) {
@@ -679,20 +717,25 @@ function frame() {
   controls.update();
   clampToMap();
 
-  // ---- зум → LOD ----
+  // ---- интро-сборка зданий (разово на старте), дальше стоят всегда ----
+  if (introT < 2.6) {
+    introT += dt;
+    const reveal = smooth(THREE.MathUtils.clamp(introT / 2.4, 0, 1));
+    updateBuildings(reveal);
+  }
+
+  // ---- зум (для подписей и деталей) ----
   const dist = camera.position.distanceTo(controls.target);
   zoom01 = THREE.MathUtils.clamp((controls.maxDistance - dist) / (controls.maxDistance - controls.minDistance), 0, 1);
-  const reveal = smooth(THREE.MathUtils.clamp((zoom01 - 0.32) / 0.5, 0, 1));
-  if (Math.abs(reveal - buildReveal) > 0.004) { updateBuildings(reveal); buildReveal = reveal; }
 
-  // маяки: ярче издалека, гаснут вблизи
-  const beaconVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.35) / 0.35, 0, 1));
+  // маркеры: луч базы ярче издалека и гаснет вблизи; шайба-владелец видна всегда
+  const beamVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.4) / 0.35, 0, 1));
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
   for (const b of beacons) {
-    b.mat.opacity = beaconVis * (0.35 + (b.base ? 0.25 : 0.1));
-    b.discMat.opacity = beaconVis * (0.5 + 0.35 * (b.base ? pulse : 0.4));
-    b.beam.visible = b.disc.visible = beaconVis > 0.02;
-    if (b.anomaly) { b.discMat.opacity = beaconVis * (0.4 + 0.5 * pulse); }
+    if (b.beam) { b.mat.opacity = beamVis * 0.55; b.beam.visible = beamVis > 0.02; }
+    let d = 0.35 + 0.25 * (b.base ? pulse : 0.5);
+    if (b.anomaly) d = 0.4 + 0.5 * pulse;
+    b.discMat.opacity = d;
   }
 
   // ---- время суток ----

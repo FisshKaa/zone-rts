@@ -139,6 +139,31 @@
   }
   #banner.show { opacity: 1; }
 
+  /* подписи ключевых точек */
+  #kplabels { position: fixed; inset: 0; z-index: 11; pointer-events: none; overflow: hidden; }
+  .kplbl {
+    position: absolute; transform: translate(-50%, -140%);
+    font-family: 'Share Tech Mono', monospace; font-size: 10px; white-space: nowrap;
+    color: var(--ink); letter-spacing: .04em; text-shadow: 0 1px 4px #000, 0 0 2px #000;
+    will-change: transform, opacity;
+  }
+  .kplbl.anom { color: #cdd6b0; }
+  .kplbl .d { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 4px; box-shadow: 0 0 6px currentColor; }
+
+  /* инфо-панель точки */
+  #kpInfo {
+    bottom: 46px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--geiger);
+    padding: 8px 16px 9px; text-align: center; min-width: 190px;
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+  #kpInfo.show { opacity: 1; }
+  #kpInfo b { display: block; font-size: 16px; font-weight: 700; letter-spacing: .04em; }
+  #kpInfo span { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--dim); margin-top: 2px; }
+  #kpInfo em { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px;
+    color: var(--geiger); font-style: normal; letter-spacing: .08em; margin-top: 5px; }
+
   @media (max-width: 640px) {
     #brand .panel { min-width: 0; }
     #brand h1 { font-size: 18px; letter-spacing: .22em; }
@@ -151,6 +176,8 @@
 <body>
 <div id="app"></div>
 <div id="labels"></div>
+<div id="kplabels"></div>
+<div id="kpInfo" class="hud"></div>
 
 <div id="banner" class="hud"></div>
 
@@ -167,6 +194,8 @@
     <div class="readout"><span class="k">ВРЕМЯ</span><span class="v" id="clock">--:--</span></div>
     <div class="readout"><span class="k">ПОГОДА</span><span class="v" id="wx">—</span></div>
     <div class="readout"><span class="k">ФОН</span><span class="v" id="rad">0.00 μSv</span></div>
+    <div class="readout"><span class="k">ТОЧКИ</span><span class="v" id="resPt">—</span></div>
+    <div class="readout"><span class="k">АНОМАЛИИ</span><span class="v" id="resAnom">—</span></div>
     <button id="weatherBtn">СМЕНИТЬ ПОГОДУ</button>
   </div>
 </div>
@@ -207,7 +236,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
    маяки баз, погода (день/ночь + дождь/туман), HUD-подписи.
    ============================================================ */
 
-const GX = 90, GZ = 198;               // размер сетки вокселей (ширина x длина)
+const GX = 144, GZ = 320;              // размер сетки вокселей (увеличено под детальные регионы)
 const TILE = 1;                        // размер вокселя
 const HALF_X = (GX * TILE) / 2;
 const HALF_Z = (GZ * TILE) / 2;
@@ -227,7 +256,7 @@ const FACTIONS = {
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
-  { en:'ZATON',         ru:'Затон',          nx:0.06, nz:0.055, fac:'loners',  base:false },
+  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.10,  fac:'loners',  base:true  },
   { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.065, fac:'military', base:false },
   { en:'JUPITER',       ru:'Юпитер',         nx:0.07, nz:0.155, fac:'mercs',    base:false },
   { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.150, fac:'monolith', base:false },
@@ -321,15 +350,15 @@ app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x2a3327, 0.006);
 
-const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 2000);
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 3000);
 // стартовый ракурс ~45° сверху, видно всю карту
-camera.position.set(0, 250, 250);
+camera.position.set(0, 380, 380);
 
 const controls = new MapControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 20;
-controls.maxDistance = 380;
+controls.maxDistance = 580;
 controls.minPolarAngle = THREE.MathUtils.degToRad(30);
 controls.maxPolarAngle = THREE.MathUtils.degToRad(62);
 controls.target.set(0, 0, 0);
@@ -752,6 +781,98 @@ for (const z of ZONES) {
 }
 
 /* ============================================================
+   КЛЮЧЕВЫЕ ТОЧКИ — захватываемые юнитами; аномалии = ресурс
+   Универсальная система: на регион просто добавляются данные.
+   ============================================================ */
+const ANOM = {
+  thermal: { name: 'Жарка',       color: 0xe8873a },
+  electro: { name: 'Электра',     color: 0x4fd0e0 },
+  chem:    { name: 'Химия',       color: 0x6fd04a },
+  grav:    { name: 'Гравитация',  color: 0xa06fe0 },
+};
+const KP_TYPE = { base: 'база', settlement: 'поселение', chokepoint: 'узел', anomaly: 'аномальное поле' };
+
+const zaton = ZONES.find(z => z.en === 'ZATON');
+// смещения (dx,dz) в юнитах относительно центра Затона (сняты со спутниковой карты)
+const KEYPOINTS = [
+  { r: 'ZATON', ru: 'Скадовск',            dx:  3.6, dz: -5.6, type: 'base',       owner: 'loners'  },
+  { r: 'ZATON', ru: 'Лесопилка',           dx: -7.8, dz: -9.2, type: 'settlement', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Топь',                dx:-10.1, dz: -5.0, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { r: 'ZATON', ru: 'ВНЗ «Круг»',          dx: -9.5, dz: -1.4, type: 'settlement', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Изумрудное',          dx: -3.9, dz: -3.4, type: 'settlement', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Сгоревший хутор',     dx: -1.7, dz: -8.4, type: 'settlement', owner: 'bandits' },
+  { r: 'ZATON', ru: 'Заправка',            dx: -4.5, dz:  3.4, type: 'settlement', owner: 'bandits' },
+  { r: 'ZATON', ru: 'Лесничество',         dx:  9.0, dz: -0.8, type: 'settlement', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Станция переработки', dx:  7.0, dz:  8.4, type: 'base',       owner: 'neutral' },
+  { r: 'ZATON', ru: 'Баржа «Ной»',         dx:  2.8, dz:  2.8, type: 'settlement', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Мост Преображенского',dx: 10.6, dz:  3.6, type: 'chokepoint', owner: 'neutral' },
+  { r: 'ZATON', ru: 'Аномалия «Котёл»',    dx:  7.8, dz:-10.4, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { r: 'ZATON', ru: 'Соснодуб',            dx: -7.8, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { r: 'ZATON', ru: 'Железный лес',        dx: -8.7, dz:  7.8, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { r: 'ZATON', ru: 'Аномалия «Рубец»',    dx:  6.2, dz:  5.0, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { r: 'ZATON', ru: 'Аномалия «Цирк»',     dx:  0.0, dz:  8.4, type: 'anomaly',    owner: 'neutral', kind: 'chem' },
+  { r: 'ZATON', ru: 'Аномалия «Коготь»',   dx: -2.2, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'grav' },
+].map(k => {
+  k.wx = zaton.wx + k.dx; k.wz = zaton.wz + k.dz; k.gTop = topAtWorld(k.wx, k.wz);
+  return k;
+});
+
+function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner].color; }
+
+const kpPick = [];
+const ringGeo = new THREE.RingGeometry(1.2, 1.8, 24);
+const pickGeo = new THREE.SphereGeometry(2.4, 8, 6);
+const pickMat = new THREE.MeshBasicMaterial({ visible: false });
+for (const k of KEYPOINTS) {
+  const g = new THREE.Group();
+  g.position.set(k.wx, k.gTop + 0.05, k.wz);
+  const oc = kpColor(k);
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: oc, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; g.add(ring);
+  k.ring = ring; k.ringMat = ring.material; k.cluster = []; k.top = null;
+
+  if (k.type === 'anomaly') {
+    const ac = ANOM[k.kind].color;
+    for (let i = 0; i < 5; i++) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6),
+        new THREE.MeshBasicMaterial({ color: ac, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const ang = i / 5 * Math.PI * 2, rr = 0.9 + Math.random() * 0.6;
+      m.position.set(Math.cos(ang) * rr, 0.9 + Math.random() * 1.3, Math.sin(ang) * rr);
+      m.userData.base = m.position.y; m.userData.ph = Math.random() * 6.28;
+      g.add(m); k.cluster.push(m);
+    }
+  } else {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3, 0.18), new THREE.MeshBasicMaterial({ color: 0x25251f }));
+    pole.position.y = 1.5; g.add(pole);
+    const marker = k.type === 'base'
+      ? new THREE.Mesh(new THREE.OctahedronGeometry(0.85), new THREE.MeshBasicMaterial({ color: oc }))
+      : new THREE.Mesh(new THREE.TetrahedronGeometry(0.7), new THREE.MeshBasicMaterial({ color: oc }));
+    marker.position.y = 3.3; g.add(marker); k.top = marker;
+  }
+  const pick = new THREE.Mesh(pickGeo, pickMat); pick.position.y = 1.2; pick.userData.kp = k; g.add(pick);
+  scene.add(g);
+  kpPick.push(pick);
+}
+
+const ray = new THREE.Raycaster();
+function captureKP(k) {
+  if (!myFaction || k.owner === myFaction) return false;
+  k.owner = myFaction;
+  const c = kpColor(k);
+  k.ringMat.color.setHex(c);
+  if (k.top) k.top.material.color.setHex(c);
+  updateResources();
+  return true;
+}
+function updateResources() {
+  let pts = 0, anom = 0;
+  for (const k of KEYPOINTS) if (k.owner === myFaction) { pts++; if (k.type === 'anomaly') anom++; }
+  const p = document.getElementById('resPt'), a = document.getElementById('resAnom');
+  if (p) p.textContent = myFaction ? pts : '—';
+  if (a) a.textContent = myFaction ? anom : '—';
+}
+
+/* ============================================================
    ПОГОДА: дождь + день/ночь + туман
    ============================================================ */
 // дождь
@@ -853,6 +974,7 @@ function selectFaction(key, el) {
   banner.classList.add('show');
   clearTimeout(selectFaction._t);
   selectFaction._t = setTimeout(() => banner.classList.remove('show'), 2600);
+  updateResources();
 }
 
 /* ---- подписи зон (DOM-оверлей) ---- */
@@ -870,6 +992,76 @@ const labelEls = ZONES.map(z => {
 const clockEl = document.getElementById('clock');
 const radEl = document.getElementById('rad');
 const sectorEl = document.getElementById('sectorTxt');
+
+/* ---- подписи ключевых точек ---- */
+const kpLabelsRoot = document.getElementById('kplabels');
+KEYPOINTS.forEach(k => {
+  const el = document.createElement('div');
+  el.className = 'kplbl' + (k.type === 'anomaly' ? ' anom' : '');
+  const c = k.type === 'anomaly' ? ANOM[k.kind].color : kpColor(k);
+  el.innerHTML = `<span class="d" style="background:#${c.toString(16).padStart(6, '0')}"></span>${k.ru}`;
+  kpLabelsRoot.appendChild(el);
+  k.labelEl = el;
+});
+
+/* ---- клик = захват точки ---- */
+const kpInfo = document.getElementById('kpInfo');
+function showKPInfo(k) {
+  const owner = k.owner === 'neutral' ? 'нейтрально' : FACTIONS[k.owner].name;
+  const typ = k.type === 'anomaly' ? `аномалия «${ANOM[k.kind].name}» · ресурс` : KP_TYPE[k.type];
+  const hint = !myFaction ? 'выбери группировку слева'
+    : (k.owner === myFaction ? 'под твоим контролем' : 'клик — захватить');
+  kpInfo.innerHTML = `<b>${k.ru}</b><span>${typ}</span><span>владелец: ${owner}</span><em>${hint}</em>`;
+  kpInfo.style.borderColor = '#' + kpColor(k).toString(16).padStart(6, '0');
+  kpInfo.classList.add('show');
+  clearTimeout(showKPInfo._t);
+  showKPInfo._t = setTimeout(() => kpInfo.classList.remove('show'), 3200);
+}
+
+let downX = 0, downY = 0, downT = 0, moved = false;
+const cvs = renderer.domElement;
+cvs.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; downT = performance.now(); moved = false; });
+cvs.addEventListener('pointermove', e => { if (downT && Math.hypot(e.clientX - downX, e.clientY - downY) > 6) moved = true; });
+cvs.addEventListener('pointerup', e => {
+  const quick = performance.now() - downT < 350; downT = 0;
+  if (moved || !quick) return;
+  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
+  const hits = ray.intersectObjects(kpPick, false);
+  if (hits.length) {
+    const k = hits[0].object.userData.kp;
+    if (myFaction) captureKP(k);
+    showKPInfo(k);
+  }
+});
+
+/* ---- обновление точек (пульс аномалий, вращение маркеров, подписи) ---- */
+function updateKeypoints(dt, tx, tz) {
+  const t = performance.now() * 0.001;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+  const showKP = zoom01 > 0.42;
+  for (const k of KEYPOINTS) {
+    k.ringMat.opacity = (0.5 + 0.35 * pulse) * (k.owner !== 'neutral' ? 1 : 0.7);
+    if (k.type === 'anomaly') {
+      for (const m of k.cluster) {
+        m.position.y = m.userData.base + Math.sin(t * 2 + m.userData.ph) * 0.4;
+        m.material.opacity = 0.45 + 0.4 * (0.5 + 0.5 * Math.sin(t * 3 + m.userData.ph));
+        m.rotation.y += dt;
+      }
+    } else if (k.top) k.top.rotation.y += dt * 0.8;
+
+    // подпись
+    const el = k.labelEl;
+    const d = Math.hypot(tx - k.wx, tz - k.wz);
+    if (!showKP || d > 42) { el.style.display = 'none'; continue; }
+    tmpV.set(k.wx, k.gTop + (k.type === 'anomaly' ? 2.4 : 3.9), k.wz).project(camera);
+    if (tmpV.z < 1 && Math.abs(tmpV.x) < 1.2 && Math.abs(tmpV.y) < 1.2) {
+      el.style.display = 'block';
+      el.style.left = (tmpV.x * 0.5 + 0.5) * innerWidth + 'px';
+      el.style.top = (-tmpV.y * 0.5 + 0.5) * innerHeight + 'px';
+      el.style.opacity = THREE.MathUtils.clamp(1 - d / 42, 0, 1);
+    } else el.style.display = 'none';
+  }
+}
 
 /* ============================================================
    ЦИКЛ
@@ -915,11 +1107,13 @@ function frame() {
   for (let i = 0; i < ZONES.length; i++) {
     const zc = ZONES[i];
     const d = Math.hypot(tx - zc.wx, tz - zc.wz);
-    const prox = smooth(THREE.MathUtils.clamp(1 - (d - 16) / 46, 0, 1));  // близко=1, далеко=0
+    const prox = smooth(THREE.MathUtils.clamp(1 - (d - 24) / 70, 0, 1));  // близко=1, далеко=0
     const target = zoomFactor * prox;
     zoneReveal[i] += (target - zoneReveal[i]) * (1 - Math.pow(0.5, dt / 0.18)); // плавно
   }
   updateBuildings();
+
+  updateKeypoints(dt, tx, tz);
 
   // маркеры: луч базы ярче издалека, вблизи слабеет (но остаётся для навигации)
   const beamVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.4) / 0.4, 0, 1));

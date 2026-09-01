@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ЗОНА · воксельная карта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #d7e2c8;
+    --dim: #7f8a72;
+    --panel: rgba(11, 15, 10, 0.82);
+    --panel-edge: rgba(126, 154, 92, 0.28);
+    --geiger: #b9d14a;
+    --rust: #c46a3a;
+    --danger: #d3453a;
+    --grid: rgba(126, 154, 92, 0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #05070a; color: var(--ink);
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none; -webkit-user-select: none;
+  }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; touch-action: none; }
+
+  /* ---- loading ---- */
+  #boot {
+    position: fixed; inset: 0; z-index: 50;
+    display: grid; place-content: center; gap: 14px; text-align: center;
+    background: radial-gradient(120% 90% at 50% 30%, #10160f 0%, #05070a 70%);
+    transition: opacity .6s ease; letter-spacing: .04em;
+  }
+  #boot.hide { opacity: 0; pointer-events: none; }
+  #boot .rad {
+    width: 46px; height: 46px; margin: 0 auto; border-radius: 50%;
+    border: 2px solid var(--geiger); border-right-color: transparent;
+    animation: spin 1.1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #boot small { color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+
+  /* ---- HUD frame ---- */
+  .hud { position: fixed; z-index: 20; pointer-events: none; }
+  .panel {
+    pointer-events: auto;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45);
+  }
+  .corner { position: relative; }
+  .corner::before, .corner::after {
+    content: ""; position: absolute; width: 9px; height: 9px; border: 1px solid var(--geiger); opacity: .7;
+  }
+  .corner::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .corner::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+  /* top-left: identity */
+  #brand { top: 16px; left: 16px; }
+  #brand .panel { padding: 10px 14px 11px; min-width: 210px; }
+  #brand h1 {
+    margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .32em;
+    color: var(--ink); line-height: 1;
+  }
+  #brand .sub {
+    margin-top: 5px; font-family: 'Share Tech Mono', monospace; font-size: 10.5px;
+    color: var(--dim); letter-spacing: .12em;
+  }
+  #brand .sector {
+    margin-top: 8px; font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    color: var(--geiger); letter-spacing: .06em;
+  }
+
+  /* top-right: telemetry */
+  #tele { top: 16px; right: 16px; text-align: right; }
+  #tele .panel { padding: 10px 14px; min-width: 180px; }
+  .readout { display: flex; justify-content: space-between; gap: 18px;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; line-height: 1.7; }
+  .readout .k { color: var(--dim); letter-spacing: .06em; }
+  .readout .v { color: var(--ink); }
+  .readout .v.warn { color: var(--rust); }
+  .readout .v.hot { color: var(--danger); }
+  #weatherBtn {
+    margin-top: 8px; width: 100%; pointer-events: auto; cursor: pointer;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em;
+    color: var(--ink); background: rgba(126,154,92,.10);
+    border: 1px solid var(--panel-edge); padding: 6px 8px; transition: background .15s;
+  }
+  #weatherBtn:hover { background: rgba(126,154,92,.22); }
+
+  /* bottom-left: factions */
+  #factions { bottom: 16px; left: 16px; }
+  #factions .panel { padding: 10px 12px 12px; width: 236px; }
+  #factions .head {
+    font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--dim);
+    letter-spacing: .14em; margin-bottom: 8px;
+  }
+  .fac { display: flex; align-items: center; gap: 9px; padding: 5px 7px; cursor: pointer;
+    border: 1px solid transparent; transition: background .12s, border-color .12s; }
+  .fac:hover { background: rgba(126,154,92,.08); }
+  .fac.active { background: rgba(126,154,92,.12); border-color: var(--panel-edge); }
+  .fac .dot { width: 11px; height: 11px; border-radius: 2px; box-shadow: 0 0 8px currentColor; flex: none; }
+  .fac .nm { font-size: 15px; font-weight: 600; letter-spacing: .02em; line-height: 1; }
+  .fac .cnt { margin-left: auto; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+
+  /* bottom-center: controls hint */
+  #hint {
+    bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim);
+    letter-spacing: .08em; text-align: center; opacity: .82;
+  }
+  #hint b { color: var(--geiger); font-weight: 400; }
+
+  /* map labels */
+  #labels { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; }
+  .lbl {
+    position: absolute; transform: translate(-50%, -140%);
+    font-family: 'Share Tech Mono', monospace; white-space: nowrap;
+    text-shadow: 0 1px 4px #000, 0 0 2px #000; will-change: transform, opacity;
+  }
+  .lbl .en { font-size: 12px; letter-spacing: .12em; color: var(--ink); }
+  .lbl .ru { font-size: 9.5px; letter-spacing: .06em; color: var(--dim); margin-top: 1px; }
+  .lbl.base .en { color: #fff; }
+  .lbl .pin { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 5px; box-shadow: 0 0 6px currentColor; vertical-align: baseline; }
+
+  #banner {
+    top: 74px; left: 50%; transform: translateX(-50%);
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: .18em;
+    font-size: 14px; padding: 6px 16px; opacity: 0; transition: opacity .4s;
+    border-top: 1px solid var(--panel-edge); border-bottom: 1px solid var(--panel-edge);
+    background: var(--panel);
+  }
+  #banner.show { opacity: 1; }
+
+  @media (max-width: 640px) {
+    #brand .panel { min-width: 0; }
+    #brand h1 { font-size: 18px; letter-spacing: .22em; }
+    #factions .panel { width: 200px; }
+    #tele { display: none; }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div id="banner" class="hud"></div>
+
+<div id="brand" class="hud">
+  <div class="panel corner">
+    <h1>ЗОНА</h1>
+    <div class="sub">CHERNOBYL EXCLUSION · FACTION WAR</div>
+    <div class="sector" id="sectorTxt">СЕКТОР: —</div>
+  </div>
+</div>
+
+<div id="tele" class="hud">
+  <div class="panel corner">
+    <div class="readout"><span class="k">ВРЕМЯ</span><span class="v" id="clock">--:--</span></div>
+    <div class="readout"><span class="k">ПОГОДА</span><span class="v" id="wx">—</span></div>
+    <div class="readout"><span class="k">ФОН</span><span class="v" id="rad">0.00 μSv</span></div>
+    <button id="weatherBtn">СМЕНИТЬ ПОГОДУ</button>
+  </div>
+</div>
+
+<div id="factions" class="hud">
+  <div class="panel corner">
+    <div class="head">ВЫБЕРИ ГРУППИРОВКУ</div>
+    <div id="facList"></div>
+  </div>
+</div>
+
+<div id="hint" class="hud">
+  <b>колесо</b> — зум · <b>ЛКМ</b> — перемещение · <b>ПКМ</b> — поворот
+</div>
+
+<div id="boot">
+  <div class="rad"></div>
+  <div>ЗАГРУЗКА ЗОНЫ</div>
+  <small id="bootMsg">инициализация вокселей…</small>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { MapControls } from 'three/addons/controls/MapControls.js';
+
+/* ============================================================
+   ЗОНА — воксельная карта. Milestone 1.
+   Слои: террейн (instanced), здания-LEGO (instanced, растут при зуме),
+   маяки баз, погода (день/ночь + дождь/туман), HUD-подписи.
+   ============================================================ */
+
+const GX = 90, GZ = 198;               // размер сетки вокселей (ширина x длина)
+const TILE = 1;                        // размер вокселя
+const HALF_X = (GX * TILE) / 2;
+const HALF_Z = (GZ * TILE) / 2;
+
+/* ---- группировки STALKER ---- */
+const FACTIONS = {
+  loners:   { name: 'Одиночки', color: 0xc9a35a },
+  duty:     { name: 'Долг',     color: 0xb23b3b },
+  freedom:  { name: 'Свобода',  color: 0x54a24a },
+  bandits:  { name: 'Бандиты',  color: 0x9a8730 },
+  mercs:    { name: 'Наёмники', color: 0x3f78c0 },
+  military: { name: 'Военные',  color: 0x6f7d45 },
+  monolith: { name: 'Монолит',  color: 0x46c7d6 },
+  eco:      { name: 'Учёные',   color: 0xd98b2b },
+  csky:     { name: 'Чистое небо', color: 0x86b8d6 },
+};
+
+/* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
+const ZONES = [
+  { en:'ZATON',         ru:'Затон',          nx:0.06, nz:0.055, fac:'loners',  base:false },
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.065, fac:'military', base:false },
+  { en:'JUPITER',       ru:'Юпитер',         nx:0.07, nz:0.155, fac:'mercs',    base:false },
+  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.150, fac:'monolith', base:false },
+  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.170, fac:'monolith', base:false },
+  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.262, fac:'monolith', base:true  },
+  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.292, fac:'monolith', base:false, anomaly:true },
+  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.312, fac:'neutral',  base:false },
+  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.320, fac:'monolith', base:false },
+  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.372, fac:'monolith', base:true,  anomaly:true },
+  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.400, fac:'mercs',    base:true  },
+  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.440, fac:'neutral',  base:false },
+  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.548, fac:'neutral',  base:false },
+  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.548, fac:'freedom',  base:true  },
+  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.580, fac:'csky',     base:true  },
+  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.632, fac:'eco',      base:true,  anomaly:true },
+  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.620, fac:'duty',     base:true  },
+  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.652, fac:'neutral',  base:false },
+  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.680, fac:'bandits',  base:false },
+  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.752, fac:'bandits',  base:true  },
+  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.792, fac:'military', base:true  },
+  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.782, fac:'loners',   base:false },
+  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.820, fac:'neutral',  base:false },
+  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.900, fac:'loners',   base:true  },
+  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.920, fac:'csky',     base:false },
+  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.920, fac:'neutral',  base:false },
+];
+
+// перевод нормированных координат в мир
+function zoneWorld(z) {
+  return { x: (z.nx - 0.5) * GX * TILE, z: (z.nz - 0.5) * GZ * TILE };
+}
+ZONES.forEach(z => { const w = zoneWorld(z); z.wx = w.x; z.wz = w.z; });
+
+/* ---- детерминированный шум ---- */
+function hash2(x, y) {
+  let h = x * 374761393 + y * 668265263;
+  h = (h ^ (h >> 13)) * 1274126177;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967295;
+}
+function smooth(t) { return t * t * (3 - 2 * t); }
+function valueNoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const a = hash2(xi, yi), b = hash2(xi + 1, yi);
+  const c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
+  const u = smooth(xf), v = smooth(yf);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+function fbm(x, y, oct = 4) {
+  let sum = 0, amp = 0.5, freq = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    sum += amp * valueNoise(x * freq, y * freq);
+    norm += amp; amp *= 0.5; freq *= 2;
+  }
+  return sum / norm;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ---- вода: река сверху + пара озёр ---- */
+function waterLevelAt(gx, gz) {
+  const nz = gz / GZ;
+  // извилистая река у верхней кромки
+  const riverY = 0.09 + 0.05 * Math.sin(gx * 0.12) + 0.02 * Math.sin(gx * 0.31);
+  const riverBand = Math.abs(nz - riverY) < 0.028 + 0.02 * valueNoise(gx * 0.1, 3.7);
+  // озеро у ЧАЭС
+  const lx = 0.86 * GX, lz = 0.22 * GZ;
+  const lake1 = Math.hypot(gx - lx, (gz - lz) * 0.8) < 15;
+  // мелкое озеро в топях
+  const mx = 0.06 * GX, mz = 0.60 * GZ;
+  const lake2 = Math.hypot((gx - mx) * 1.1, gz - mz) < 9;
+  return riverBand || lake1 || lake2;
+}
+
+/* ============================================================
+   СЦЕНА
+   ============================================================ */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x2a3327, 0.006);
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 2000);
+// стартовый ракурс ~45° сверху, видно всю карту
+camera.position.set(0, 250, 250);
+
+const controls = new MapControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 20;
+controls.maxDistance = 380;
+controls.minPolarAngle = THREE.MathUtils.degToRad(30);
+controls.maxPolarAngle = THREE.MathUtils.degToRad(62);
+controls.target.set(0, 0, 0);
+
+// мягкое ограничение панорамы границами карты
+function clampToMap() {
+  const cx = THREE.MathUtils.clamp(controls.target.x, -HALF_X * 1.05, HALF_X * 1.05);
+  const cz = THREE.MathUtils.clamp(controls.target.z, -HALF_Z * 1.05, HALF_Z * 1.05);
+  const dx = cx - controls.target.x, dz = cz - controls.target.z;
+  if (dx || dz) {
+    controls.target.x = cx; controls.target.z = cz;
+    camera.position.x += dx; camera.position.z += dz;
+  }
+}
+
+/* ---- свет ---- */
+const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x2a2318, 0.55);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d0, 1.6);
+sun.position.set(120, 200, 60);
+scene.add(sun);
+const ambient = new THREE.AmbientLight(0x30392b, 0.5);
+scene.add(ambient);
+
+/* ============================================================
+   ТЕРРЕЙН (instanced voxels)
+   ============================================================ */
+const HEIGHT_SCALE = 5.5;
+const BASE_H = 1.4;
+
+// цветовые палитры биомов
+const C = {
+  forestA: new THREE.Color(0x3d5233), forestB: new THREE.Color(0x2c3d26),
+  waste:   new THREE.Color(0x6b5f3f), wasteB:  new THREE.Color(0x574b32),
+  swamp:   new THREE.Color(0x394a34), swampB:  new THREE.Color(0x2c3a30),
+  water:   new THREE.Color(0x1d3038), waterB:  new THREE.Color(0x162530),
+  city:    new THREE.Color(0x5a5c55), cityB:   new THREE.Color(0x44463f),
+  anomaly: new THREE.Color(0x7a2f2a),
+};
+
+const groundGeo = new THREE.BoxGeometry(TILE, 1, TILE);
+const groundMat = new THREE.MeshLambertMaterial({ vertexColors: false });
+const groundCount = GX * GZ;
+const ground = new THREE.InstancedMesh(groundGeo, groundMat, groundCount);
+ground.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+scene.add(ground);
+
+// карта высот верхней грани тайла — пригодится для установки зданий
+const topAt = new Float32Array(GX * GZ);
+const dummy = new THREE.Object3D();
+const col = new THREE.Color();
+
+// ближайшая зона к тайлу (для окраски регионов)
+function nearestZone(wx, wz) {
+  let best = null, bd = Infinity;
+  for (const z of ZONES) {
+    const d = (z.wx - wx) ** 2 + (z.wz - wz) ** 2;
+    if (d < bd) { bd = d; best = z; }
+  }
+  return { z: best, dist: Math.sqrt(bd) };
+}
+
+let idx = 0;
+for (let gz = 0; gz < GZ; gz++) {
+  for (let gx = 0; gx < GX; gx++) {
+    const wx = (gx - GX / 2 + 0.5) * TILE;
+    const wz = (gz - GZ / 2 + 0.5) * TILE;
+
+    const e = fbm(gx * 0.045 + 10, gz * 0.045 + 10, 5);       // рельеф
+    const m = fbm(gx * 0.03 - 5, gz * 0.03 - 5, 3);           // влажность
+    const isWater = waterLevelAt(gx, gz);
+
+    const near = nearestZone(wx, wz);
+    const cityInfluence = Math.max(0, 1 - near.dist / 9);     // близко к поселению
+
+    let h, base, edge, t;
+    if (isWater) {
+      h = 0.6; base = C.water; edge = C.waterB; t = e;
+    } else if (cityInfluence > 0.15 && near.z.fac !== 'neutral') {
+      h = BASE_H + e * 2.2; base = C.city; edge = C.cityB; t = m;
+    } else if (m < 0.4) {
+      h = BASE_H + e * HEIGHT_SCALE; base = C.waste; edge = C.wasteB; t = e;
+    } else if (m > 0.66 && e < 0.5) {
+      h = BASE_H + e * 2.5; base = C.swamp; edge = C.swampB; t = m;
+    } else {
+      h = BASE_H + e * HEIGHT_SCALE; base = C.forestA; edge = C.forestB; t = e;
+    }
+
+    col.copy(edge).lerp(base, smooth(t));
+    // лёгкая пёстрость
+    col.offsetHSL(0, 0, (hash2(gx, gz) - 0.5) * 0.05);
+
+    // аномальный красный ореол
+    for (const z of ZONES) {
+      if (!z.anomaly) continue;
+      const d = Math.hypot(z.wx - wx, z.wz - wz);
+      if (d < 13) col.lerp(C.anomaly, (1 - d / 13) * 0.55);
+    }
+
+    topAt[idx] = h;
+    dummy.position.set(wx, h / 2, wz);
+    dummy.scale.set(1, h, 1);
+    dummy.updateMatrix();
+    ground.setMatrixAt(idx, dummy.matrix);
+    ground.setColorAt(idx, col);
+    idx++;
+  }
+}
+ground.instanceMatrix.needsUpdate = true;
+ground.instanceColor.needsUpdate = true;
+
+function topAtWorld(wx, wz) {
+  const gx = Math.round(wx / TILE + GX / 2 - 0.5);
+  const gz = Math.round(wz / TILE + GZ / 2 - 0.5);
+  if (gx < 0 || gx >= GX || gz < 0 || gz >= GZ) return BASE_H;
+  return topAt[gz * GX + gx];
+}
+
+/* ============================================================
+   ЗДАНИЯ-LEGO (instanced, растут снизу вверх при зуме)
+   ============================================================ */
+const voxGeo = new THREE.BoxGeometry(0.92, 1, 0.92);
+const voxMat = new THREE.MeshLambertMaterial();
+const buildingVox = [];   // {x,z,layer,ground,color, sx,sz}
+
+const concrete = [0x8d8f86, 0x9a9c92, 0x76786f, 0x6a6d64];
+for (let zi = 0; zi < ZONES.length; zi++) {
+  const z = ZONES[zi];
+  if (z.fac === 'neutral' && !z.base) { /* всё равно ставим руины, но пониже */ }
+  const rnd = mulberry32(1000 + zi * 97);
+  const facCol = z.fac === 'neutral' ? new THREE.Color(0x8a8c82) : new THREE.Color(FACTIONS[z.fac].color);
+  const settleSize = z.base ? 5 : (z.fac === 'neutral' ? 2 : 3);
+  const towers = z.base ? 6 + Math.floor(rnd() * 5) : 2 + Math.floor(rnd() * 3);
+
+  for (let t = 0; t < towers; t++) {
+    const ox = Math.round((rnd() - 0.5) * settleSize * 2);
+    const oz = Math.round((rnd() - 0.5) * settleSize * 2);
+    const wx = z.wx + ox, wz = z.wz + oz;
+    const gTop = topAtWorld(wx, wz);
+    const footW = 1 + Math.floor(rnd() * 2);
+    const footD = 1 + Math.floor(rnd() * 2);
+    const height = (z.base ? 3 : 2) + Math.floor(rnd() * (z.base ? 6 : 3));
+    const tint = new THREE.Color(concrete[Math.floor(rnd() * concrete.length)]);
+    tint.lerp(facCol, 0.16 + rnd() * 0.12);
+
+    for (let bx = 0; bx < footW; bx++)
+      for (let bz = 0; bz < footD; bz++)
+        for (let ly = 0; ly < height; ly++) {
+          const shade = tint.clone().offsetHSL(0, 0, (rnd() - 0.5) * 0.06);
+          // редкие «окна» — тёмные воксели
+          if (rnd() < 0.12) shade.multiplyScalar(0.55);
+          buildingVox.push({
+            x: wx + bx - (footW - 1) / 2,
+            z: wz + bz - (footD - 1) / 2,
+            layer: ly, ground: gTop,
+            color: shade, zone: zi,
+          });
+        }
+  }
+}
+
+const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
+buildings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+scene.add(buildings);
+for (let i = 0; i < buildingVox.length; i++) buildings.setColorAt(i, buildingVox[i].color);
+buildings.instanceColor.needsUpdate = true;
+const maxLayer = buildingVox.reduce((m, v) => Math.max(m, v.layer), 1);
+
+/* ============================================================
+   МАЯКИ БАЗ (видны на плоской карте, гаснут при зуме)
+   ============================================================ */
+const beacons = [];
+const beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 40, 6, 1, true);
+for (const z of ZONES) {
+  const c = z.fac === 'neutral' ? 0x8a8c82 : FACTIONS[z.fac].color;
+  const mat = new THREE.MeshBasicMaterial({
+    color: c, transparent: true, opacity: 0.5, depthWrite: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  const beam = new THREE.Mesh(beamGeo, mat);
+  const gTop = topAtWorld(z.wx, z.wz);
+  beam.position.set(z.wx, gTop + 20, z.wz);
+  beam.scale.set(z.base ? 1.6 : 0.9, 1, z.base ? 1.6 : 0.9);
+  scene.add(beam);
+  // светящаяся «шайба» у земли
+  const discMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false });
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(z.base ? 3.4 : 2, 20), discMat);
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.set(z.wx, gTop + 0.15, z.wz);
+  scene.add(disc);
+  beacons.push({ beam, disc, base: z.base, anomaly: !!z.anomaly, mat, discMat });
+}
+
+/* ============================================================
+   ПОГОДА: дождь + день/ночь + туман
+   ============================================================ */
+// дождь
+const RAIN_N = 4500;
+const rainGeo = new THREE.BufferGeometry();
+const rainPos = new Float32Array(RAIN_N * 3);
+const rainVel = new Float32Array(RAIN_N);
+for (let i = 0; i < RAIN_N; i++) {
+  rainPos[i * 3] = (Math.random() - 0.5) * GX;
+  rainPos[i * 3 + 1] = Math.random() * 120;
+  rainPos[i * 3 + 2] = (Math.random() - 0.5) * GZ;
+  rainVel[i] = 0.8 + Math.random() * 0.9;
+}
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rainMat = new THREE.PointsMaterial({
+  color: 0x9fb4c4, size: 0.5, transparent: true, opacity: 0, depthWrite: false,
+});
+const rain = new THREE.Points(rainGeo, rainMat);
+scene.add(rain);
+
+// состояния погоды
+const WX = {
+  clear:    { label: 'ЯСНО',    fog: 0.0045, rain: 0,   dark: 0.0, tint: 0x2a3327 },
+  overcast: { label: 'ПАСМУРНО',fog: 0.010,  rain: 0,   dark: 0.35, tint: 0x2b3130 },
+  rain:     { label: 'ДОЖДЬ',   fog: 0.016,  rain: 1,   dark: 0.55, tint: 0x232a2b },
+  fog:      { label: 'ТУМАН',   fog: 0.030,  rain: 0,   dark: 0.4,  tint: 0x39423a },
+  storm:    { label: 'ВЫБРОС',  fog: 0.024,  rain: 0.6, dark: 0.7,  tint: 0x3a2320 },
+};
+const WX_KEYS = Object.keys(WX);
+let wxCur = { ...WX.clear, tintC: new THREE.Color(WX.clear.tint) };
+let wxTarget = { ...WX.overcast, tintC: new THREE.Color(WX.overcast.tint) };
+let wxName = 'overcast';
+let wxTimer = 0;
+
+function pickWeather(force) {
+  const options = force ? WX_KEYS.filter(k => k !== wxName) : WX_KEYS;
+  const weights = { clear: 3, overcast: 3, rain: 2, fog: 2, storm: 1 };
+  let pool = [];
+  options.forEach(k => { for (let i = 0; i < weights[k]; i++) pool.push(k); });
+  wxName = pool[Math.floor(Math.random() * pool.length)];
+  wxTarget = { ...WX[wxName], tintC: new THREE.Color(WX[wxName].tint) };
+  wxTimer = 0;
+  document.getElementById('wx').textContent = WX[wxName].label;
+}
+pickWeather(false);
+document.getElementById('weatherBtn').addEventListener('click', () => pickWeather(true));
+
+// цвета неба по времени суток (ключевые кадры)
+const SKY = [
+  { t: 0.00, c: new THREE.Color(0x0b1220) }, // ночь
+  { t: 0.22, c: new THREE.Color(0x2a2438) }, // предрассвет
+  { t: 0.28, c: new THREE.Color(0xc06a44) }, // рассвет
+  { t: 0.5,  c: new THREE.Color(0x8fa9b8) }, // день
+  { t: 0.72, c: new THREE.Color(0xc9743f) }, // закат
+  { t: 0.8,  c: new THREE.Color(0x33283a) }, // сумерки
+  { t: 1.0,  c: new THREE.Color(0x0b1220) },
+];
+function skyColor(t) {
+  for (let i = 0; i < SKY.length - 1; i++) {
+    if (t >= SKY[i].t && t <= SKY[i + 1].t) {
+      const k = (t - SKY[i].t) / (SKY[i + 1].t - SKY[i].t);
+      return SKY[i].c.clone().lerp(SKY[i + 1].c, k);
+    }
+  }
+  return SKY[0].c.clone();
+}
+
+let timeOfDay = 0.36;               // старт — утро
+const DAY_LEN = 210;                // секунд на полный цикл
+const skyC = new THREE.Color();
+
+/* ============================================================
+   HUD: список группировок, банер, часы
+   ============================================================ */
+let myFaction = null;
+const facList = document.getElementById('facList');
+// сколько зон у каждой группировки
+const facCount = {};
+ZONES.forEach(z => { if (z.fac !== 'neutral') facCount[z.fac] = (facCount[z.fac] || 0) + 1; });
+
+Object.entries(FACTIONS).forEach(([key, f]) => {
+  if (!facCount[key]) return;
+  const el = document.createElement('div');
+  el.className = 'fac';
+  el.innerHTML = `<span class="dot" style="background:#${f.color.toString(16).padStart(6,'0')};color:#${f.color.toString(16).padStart(6,'0')}"></span>
+                  <span class="nm">${f.name}</span>
+                  <span class="cnt">${facCount[key]} зон</span>`;
+  el.addEventListener('click', () => selectFaction(key, el));
+  facList.appendChild(el);
+});
+
+const banner = document.getElementById('banner');
+function selectFaction(key, el) {
+  myFaction = key;
+  document.querySelectorAll('.fac').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  banner.textContent = `ТЫ ИГРАЕШЬ ЗА · ${FACTIONS[key].name.toUpperCase()}`;
+  banner.style.color = `#${FACTIONS[key].color.toString(16).padStart(6,'0')}`;
+  banner.classList.add('show');
+  clearTimeout(selectFaction._t);
+  selectFaction._t = setTimeout(() => banner.classList.remove('show'), 2600);
+}
+
+/* ---- подписи зон (DOM-оверлей) ---- */
+const labelsRoot = document.getElementById('labels');
+const labelEls = ZONES.map(z => {
+  const el = document.createElement('div');
+  el.className = 'lbl' + (z.base ? ' base' : '');
+  const c = z.fac === 'neutral' ? '#8a8c82' : '#' + FACTIONS[z.fac].color.toString(16).padStart(6, '0');
+  el.innerHTML = `<div class="en"><span class="pin" style="background:${c};color:${c}"></span>${z.en}</div>
+                  <div class="ru">${z.ru}</div>`;
+  labelsRoot.appendChild(el);
+  return el;
+});
+
+const clockEl = document.getElementById('clock');
+const radEl = document.getElementById('rad');
+const sectorEl = document.getElementById('sectorTxt');
+
+/* ============================================================
+   ЦИКЛ
+   ============================================================ */
+const tmpV = new THREE.Vector3();
+const mProj = new THREE.Matrix4();
+let zoom01 = 0, buildReveal = -1;
+const clock = new THREE.Clock();
+
+function updateBuildings(reveal) {
+  // reveal 0..1 — насколько «собраны» здания
+  const grown = reveal;
+  for (let i = 0; i < buildingVox.length; i++) {
+    const v = buildingVox[i];
+    // слой появляется, когда rise перевалит за его высоту
+    const rise = grown * (maxLayer + 1.5);
+    let s = THREE.MathUtils.clamp(rise - v.layer, 0, 1);
+    if (s <= 0.001) {
+      dummy.position.set(0, -9999, 0); dummy.scale.set(0.0001, 0.0001, 0.0001);
+    } else {
+      dummy.position.set(v.x, v.ground + v.layer + s / 2, v.z);
+      dummy.scale.set(1, s, 1);
+    }
+    dummy.updateMatrix();
+    buildings.setMatrixAt(i, dummy.matrix);
+  }
+  buildings.instanceMatrix.needsUpdate = true;
+}
+updateBuildings(0);
+
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  controls.update();
+  clampToMap();
+
+  // ---- зум → LOD ----
+  const dist = camera.position.distanceTo(controls.target);
+  zoom01 = THREE.MathUtils.clamp((controls.maxDistance - dist) / (controls.maxDistance - controls.minDistance), 0, 1);
+  const reveal = smooth(THREE.MathUtils.clamp((zoom01 - 0.32) / 0.5, 0, 1));
+  if (Math.abs(reveal - buildReveal) > 0.004) { updateBuildings(reveal); buildReveal = reveal; }
+
+  // маяки: ярче издалека, гаснут вблизи
+  const beaconVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.35) / 0.35, 0, 1));
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
+  for (const b of beacons) {
+    b.mat.opacity = beaconVis * (0.35 + (b.base ? 0.25 : 0.1));
+    b.discMat.opacity = beaconVis * (0.5 + 0.35 * (b.base ? pulse : 0.4));
+    b.beam.visible = b.disc.visible = beaconVis > 0.02;
+    if (b.anomaly) { b.discMat.opacity = beaconVis * (0.4 + 0.5 * pulse); }
+  }
+
+  // ---- время суток ----
+  timeOfDay = (timeOfDay + dt / DAY_LEN) % 1;
+  const sunAngle = (timeOfDay - 0.25) * Math.PI * 2;
+  const sunH = Math.sin(sunAngle);
+  sun.position.set(Math.cos(sunAngle) * 200, Math.max(-40, sunH * 220), 80);
+  const daylight = THREE.MathUtils.clamp(sunH * 1.2 + 0.35, 0.05, 1);
+
+  // ---- погода: плавный переход к цели ----
+  wxTimer += dt;
+  if (wxTimer > 30) pickWeather(true);
+  const k = 1 - Math.pow(0.5, dt / 1.6);
+  wxCur.fog += (wxTarget.fog - wxCur.fog) * k;
+  wxCur.rain += (wxTarget.rain - wxCur.rain) * k;
+  wxCur.dark += (wxTarget.dark - wxCur.dark) * k;
+  wxCur.tintC.lerp(wxTarget.tintC, k);
+
+  // небо = цвет времени суток, приглушённый погодой
+  skyC.copy(skyColor(timeOfDay)).lerp(wxCur.tintC, 0.35 * wxCur.dark + 0.15);
+  scene.background = skyC;
+  scene.fog.color.copy(skyC).multiplyScalar(0.9);
+  scene.fog.density = wxCur.fog;
+
+  const light = daylight * (1 - wxCur.dark * 0.6);
+  sun.intensity = 0.4 + light * 1.7;
+  sun.color.copy(skyColor(timeOfDay)).lerp(new THREE.Color(0xfff2d0), 0.6);
+  hemi.intensity = 0.3 + light * 0.5;
+  ambient.intensity = 0.35 + (1 - light) * 0.25;
+
+  // ---- дождь ----
+  const rainOn = wxCur.rain;
+  rainMat.opacity = rainOn * 0.55;
+  if (rainOn > 0.02) {
+    const p = rainGeo.attributes.position.array;
+    const cx = controls.target.x, cz = controls.target.z;
+    for (let i = 0; i < RAIN_N; i++) {
+      p[i * 3 + 1] -= rainVel[i] * (60 * dt) * (0.6 + rainOn);
+      if (p[i * 3 + 1] < 0) {
+        p[i * 3] = cx + (Math.random() - 0.5) * GX;
+        p[i * 3 + 1] = 110;
+        p[i * 3 + 2] = cz + (Math.random() - 0.5) * GZ;
+      }
+      p[i * 3] += 6 * dt; // ветер
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+    rain.visible = true;
+  } else { rain.visible = false; }
+
+  // ---- HUD-подписи ----
+  const showKey = THREE.MathUtils.clamp((zoom01 - 0.1) / 0.2, 0, 1);
+  let nearestCam = null, nd = Infinity;
+  for (let i = 0; i < ZONES.length; i++) {
+    const z = ZONES[i];
+    const gTop = topAtWorld(z.wx, z.wz);
+    tmpV.set(z.wx, gTop + 4, z.wz);
+    const wpos = tmpV.clone();
+    tmpV.project(camera);
+    const el = labelEls[i];
+    const onScreen = tmpV.z < 1 && Math.abs(tmpV.x) < 1.3 && Math.abs(tmpV.y) < 1.3;
+    // база — всегда; ключевые зоны — при среднем зуме
+    const wantShow = z.base ? 1 : showKey * (zoom01 < 0.9 ? 1 : 0);
+    if (onScreen && wantShow > 0.05) {
+      const sx = (tmpV.x * 0.5 + 0.5) * innerWidth;
+      const sy = (-tmpV.y * 0.5 + 0.5) * innerHeight;
+      el.style.display = 'block';
+      el.style.left = sx + 'px';
+      el.style.top = sy + 'px';
+      el.style.opacity = wantShow;
+    } else {
+      el.style.display = 'none';
+    }
+    // ближайшая к центру камеры — для «СЕКТОР»
+    const d = (z.wx - controls.target.x) ** 2 + (z.wz - controls.target.z) ** 2;
+    if (d < nd) { nd = d; nearestCam = z; }
+  }
+  if (nearestCam) sectorEl.textContent = 'СЕКТОР: ' + nearestCam.en;
+
+  // ---- телеметрия ----
+  const hh = Math.floor(timeOfDay * 24);
+  const mm = Math.floor((timeOfDay * 24 % 1) * 60);
+  clockEl.textContent = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  const radBase = nearestCam && nearestCam.anomaly ? 6 : 0.3;
+  const radVal = (radBase + wxCur.rain * 1.5 + Math.random() * 0.3).toFixed(2);
+  radEl.textContent = radVal + ' μSv';
+  radEl.className = 'v' + (radBase > 3 ? ' hot' : wxCur.rain > 0.4 ? ' warn' : '');
+
+  renderer.render(scene, camera);
+}
+
+/* ---- запуск ---- */
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const boot = document.getElementById('boot');
+document.getElementById('bootMsg').textContent = 'сборка вокселей: ' + (groundCount + buildingVox.length).toLocaleString('ru') + ' блоков';
+requestAnimationFrame(() => {
+  frame();
+  setTimeout(() => boot.classList.add('hide'), 400);
+});
+
+// на всякий случай — если three не подгрузился
+setTimeout(() => {
+  if (!renderer.info.render.frame) {
+    document.getElementById('bootMsg').textContent = 'ошибка загрузки three.js — проверь сеть';
+  }
+}, 4000);
+</script>
+</body>
+</html>

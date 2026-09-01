@@ -236,7 +236,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
    маяки баз, погода (день/ночь + дождь/туман), HUD-подписи.
    ============================================================ */
 
-const GX = 400, GZ = 880;              // карта расширена по X — Затон не обрезается
+const GX = 400, GZ = 1020;             // карта удлинена вниз под Курчатов-37
 const TILE = 1;                        // размер вокселя
 const HALF_X = (GX * TILE) / 2;
 const HALF_Z = (GZ * TILE) / 2;
@@ -252,25 +252,28 @@ const FACTIONS = {
   monolith: { name: 'Монолит',  color: 0x46c7d6 },
   eco:      { name: 'Учёные',   color: 0xd98b2b },
   csky:     { name: 'Чистое небо', color: 0x86b8d6 },
+  renegade: { name: 'Ренегаты',   color: 0xb04a8a },
 };
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
   { en:'ZATON',         ru:'Затон',          nx:0.18, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      },
-  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.055, fac:'military', base:false, biome:'city'       },
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.72, nz:0.955, fac:'military', base:false, biome:'city'       },
   { en:'JUPITER',       ru:'Юпитер',         nx:0.14, nz:0.235, fac:'mercs',    base:false, biome:'waste'      },
   { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.135, fac:'monolith', base:false, biome:'city'       },
   { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.150, fac:'monolith', base:false, biome:'city'       },
   { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.240, fac:'monolith', base:true,  biome:'waste'      },
   { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.268, fac:'monolith', base:false, anomaly:true, biome:'deadforest' },
   { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.285, fac:'neutral',  base:false, biome:'rocky'      },
-  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:false, biome:'city'       },
+  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:true,  biome:'city'       },
   { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.345, fac:'monolith', base:true,  anomaly:true, biome:'swamp' },
   { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.375, fac:'mercs',    base:true,  biome:'city'       },
   { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.415, fac:'neutral',  base:false, biome:'waste'      },
   { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.515, fac:'neutral',  base:false, biome:'forest'     },
   { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.515, fac:'freedom',  base:true,  biome:'forest'     },
-  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.550, fac:'csky',     base:true,  biome:'swamp'      },
+  { en:'MARSH',         ru:'Топи',           nx:0.13, nz:0.870, fac:'csky',     base:true,  biome:'swamp'      },
+  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.28, nz:0.895, fac:'renegade', base:true,  biome:'swamp'      },
+  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.895, fac:'neutral',  base:false, biome:'city'       },
   { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.600, fac:'eco',      base:true,  anomaly:true, biome:'swamp' },
   { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.590, fac:'duty',     base:true,  biome:'city'       },
   { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.620, fac:'neutral',  base:false, biome:'waste'      },
@@ -280,8 +283,6 @@ const ZONES = [
   { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.748, fac:'loners',   base:false, biome:'waste'      },
   { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.788, fac:'neutral',  base:false, biome:'forest'     },
   { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.878, fac:'loners',   base:true,  biome:'forest'     },
-  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.895, fac:'csky',     base:false, biome:'swamp'      },
-  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.895, fac:'neutral',  base:false, biome:'rocky'      },
 ];
 
 // перевод нормированных координат в мир
@@ -382,14 +383,14 @@ app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x2a3327, 0.006);
 
-const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 7000);
-camera.position.set(0, 900, 900);
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 8000);
+camera.position.set(0, 1000, 1000);
 
 const controls = new MapControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 20;
-controls.maxDistance = 1500;
+controls.maxDistance = 1800;
 controls.minPolarAngle = THREE.MathUtils.degToRad(30);
 controls.maxPolarAngle = THREE.MathUtils.degToRad(62);
 controls.target.set(0, 0, 0);
@@ -579,13 +580,297 @@ const JUPITER_KP = [
   { ru: 'Полуостанок',            dx:   4, dz: -20, type: 'settlement', owner: 'neutral' },
 ];
 
+// ---- КОРДОН (Shadow of Chernobyl) ----
+const CORDON_KP = [
+  { ru: 'КПП «Кордон»',         dx:   0, dz:  22, type: 'base',       owner: 'military' },
+  { ru: 'Деревня новичков',      dx: -10, dz:   6, type: 'settlement', owner: 'loners'   },
+  { ru: 'Железнодорожный мост',  dx:  14, dz:   8, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Лагерь у костра',       dx:  -6, dz:  -4, type: 'settlement', owner: 'loners'   },
+  { ru: 'Брошенная ферма',       dx:  10, dz:  -8, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Туннель под ж/д',       dx:   2, dz:  16, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Воронка»',    dx:  -4, dz:  12, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Аномалия «Плешь»',      dx:  18, dz:  -2, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Блокпост сталкеров',    dx:  -8, dz:  -16, type: 'settlement', owner: 'loners'  },
+];
+
+// ---- СВАЛКА (Shadow of Chernobyl) ----
+const GARBAGE_KP = [
+  { ru: 'Автопарк',              dx:   8, dz:  -8, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Завод по переработке',  dx: -10, dz:  -4, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Лагерь Сталкеров',      dx:   2, dz:  12, type: 'settlement', owner: 'loners'   },
+  { ru: 'Брошенный лагерь',      dx: -14, dz:  10, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Центральный склад',      dx:  12, dz:   4, type: 'base',       owner: 'bandits'  },
+  { ru: 'Мусорный курган',        dx:   0, dz:  -14, type: 'settlement', owner: 'neutral' },
+  { ru: 'Аномалия «Кисель»',     dx:  -6, dz:  -18, type: 'anomaly',   owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномалия «Карусель»',   dx:  16, dz: -10, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Туннель выхода',        dx: -18, dz:  -2, type: 'chokepoint', owner: 'neutral'  },
+];
+
+// ---- АГРОПРОМ (Shadow of Chernobyl) ----
+const AGROPROM_KP = [
+  { ru: 'НИИ Агропром',          dx:   6, dz:  -6, type: 'base',       owner: 'military' },
+  { ru: 'Подземелья Агропрома',  dx:   2, dz:   2, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Стоянка техники',       dx: -10, dz:  -8, type: 'settlement', owner: 'military' },
+  { ru: 'Заброшенный ток',       dx:  14, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Силосные башни',        dx: -14, dz:   6, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Аномалия «Жарка»',      dx:  -4, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Аномалия «Электра»',    dx:  18, dz:  -2, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Фермерский дом',        dx:  -8, dz: -16, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- ТЁМНАЯ ДОЛИНА (Shadow of Chernobyl) ----
+const DARK_VALLEY_KP = [
+  { ru: 'База «Свободы»',        dx:  -8, dz:  -6, type: 'base',       owner: 'freedom'  },
+  { ru: 'Лаборатория X-18',      dx:   8, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Завод им. Скадовского', dx:  14, dz:  -4, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Лагерь бандитов',       dx:   0, dz: -14, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Северный блокпост',     dx: -16, dz:   8, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Вихрь»',      dx:  -2, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Аномалия «Студень»',    dx:  18, dz:   6, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Заброшенный посёлок',   dx: -12, dz: -12, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- ЯНТАРЬ (Shadow of Chernobyl) ----
+const YANTAR_KP = [
+  { ru: 'Бункер учёных',         dx:   2, dz:   6, type: 'base',       owner: 'eco'      },
+  { ru: 'Завод «Янтарь»',        dx:  12, dz:  -4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Озеро аномалий',        dx:  -8, dz: -10, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Лаборатория X-16',      dx:  -4, dz:   2, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Деревня Янтарь',        dx: -14, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Кисель»',     dx:  16, dz:   8, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномалия «Трамплин»',   dx:   6, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Вышка связи',           dx:   8, dz:  16, type: 'chokepoint', owner: 'neutral'  },
+];
+
+// ---- РОСТОК / Бар (Shadow of Chernobyl) ----
+const ROSTOK_KP = [
+  { ru: 'Бар «100 рентген»',     dx:  -4, dz:  -6, type: 'base',       owner: 'duty'     },
+  { ru: 'Арена',                 dx:   6, dz:   4, type: 'settlement', owner: 'duty'     },
+  { ru: 'Ангары Ростока',        dx:  14, dz:  -2, type: 'settlement', owner: 'duty'     },
+  { ru: 'Позиции «Долга»',       dx: -12, dz:   6, type: 'settlement', owner: 'duty'     },
+  { ru: 'Брошенный завод',       dx:   2, dz:  14, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Мясорубка»',  dx:  -8, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Аномалия «Электра»',    dx:  18, dz:   8, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'КПП «Долга»',           dx: -16, dz: -10, type: 'chokepoint', owner: 'duty'     },
+];
+
+// ---- ВОЕННЫЕ СКЛАДЫ (Clear Sky) ----
+const ARMY_KP = [
+  { ru: 'Главный склад',         dx:   6, dz:  -8, type: 'base',       owner: 'freedom'  },
+  { ru: 'Бункер «Свободы»',      dx: -10, dz:  -4, type: 'settlement', owner: 'freedom'  },
+  { ru: 'Оружейные хранилища',   dx:  14, dz:   4, type: 'settlement', owner: 'freedom'  },
+  { ru: 'Позиции «Долга»',       dx: -14, dz:   8, type: 'settlement', owner: 'duty'     },
+  { ru: 'Техпарк',               dx:   2, dz:  14, type: 'settlement', owner: 'neutral'  },
+  { ru: 'КПП восток',            dx:  18, dz: -10, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Воронка»',    dx:  -4, dz: -16, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Аномалия «Жарка»',      dx:  10, dz:  10, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+];
+
+// ---- ТОПИ (Clear Sky) ----
+const MARSH_KP = [
+  { ru: 'База «Чистого неба»',   dx:  -4, dz:  -8, type: 'base',       owner: 'csky'     },
+  { ru: 'Деревня в Топях',       dx:  10, dz:   4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Заброшенная ферма',     dx: -14, dz:   6, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Блокпост ЧН',           dx:   4, dz: -16, type: 'chokepoint', owner: 'csky'     },
+  { ru: 'Лагерь болотников',     dx: -10, dz:  12, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Трясина»',    dx:  16, dz:  -4, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномалия «Зыбь»',       dx:  -6, dz:  16, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+];
+
+// ---- ПРИПЯТЬ (Call of Pripyat) ----
+const PRIPYAT_KP = [
+  { ru: 'Гостиница «Полесье»',   dx:  -6, dz:  -8, type: 'base',       owner: 'monolith' },
+  { ru: 'Площадь Курчатова',     dx:   8, dz:   4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Торговый центр',        dx: -12, dz:   6, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Колесо обозрения',      dx:  14, dz: -10, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Стадион',               dx:   0, dz:  14, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Завод Юпитер (север)',  dx:  16, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Плешь»',      dx:  -4, dz:  18, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Аномалия «Электра»',    dx: -16, dz: -10, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Подвалы Припяти',       dx:   4, dz:  -18, type: 'chokepoint', owner: 'neutral' },
+];
+
+// ---- РЫЖИЙ ЛЕС ----
+const RED_FOREST_KP = [
+  { ru: 'Центр леса',            dx:   0, dz:   0, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Опытная станция',       dx:  10, dz:  -8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Ожог»',       dx: -10, dz:  -6, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Аномалия «Кисель»',     dx:   6, dz:  12, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномалия «Ведьмин студень»',dx:-6,dz: 10, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Брошенный пост',        dx:  14, dz:   6, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Просека',               dx: -14, dz:  -2, type: 'chokepoint', owner: 'neutral'  },
+];
+
+// ---- МЁРТВЫЙ ГОРОД (Clear Sky) ----
+const DEAD_CITY_KP = [
+  { ru: 'Квартал наёмников',     dx:   6, dz:  -4, type: 'base',       owner: 'mercs'    },
+  { ru: 'Гостиница',             dx: -10, dz:  -8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Подвалы завода',        dx:  14, dz:   6, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Площадь города',        dx:  -2, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Электра»',    dx: -14, dz:   4, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Аномалия «Воронка»',    dx:   8, dz:  16, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'КПП на выезде',         dx:  16, dz: -10, type: 'chokepoint', owner: 'neutral'  },
+];
+
+// ---- ПУСТОШЬ ----
+const DEADLANDS_KP = [
+  { ru: 'Заброшенный блокпост',  dx:   8, dz:  -6, type: 'base',       owner: 'neutral'  },
+  { ru: 'Ржавые цистерны',       dx: -10, dz:   4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Воронка от взрыва',     dx:   2, dz:  12, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Брошенный лагерь',      dx: -14, dz: -10, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Студень»',    dx:  14, dz:   8, type: 'anomaly',    owner: 'neutral', kind: 'chem'   },
+];
+
+// ---- ПЕРЕКРЁСТОК ----
+const CROSSROADS_KP = [
+  { ru: 'Дорожный пост',         dx:   0, dz:   0, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Заправочная станция',   dx:  10, dz:  -8, type: 'settlement', owner: 'loners'   },
+  { ru: 'Схрон у дороги',        dx: -10, dz:   6, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Трамплин»',   dx:  -4, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { ru: 'Сожжённая деревня',     dx:  14, dz:   8, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- ЗАПОЛЬЕ ----
+const ZAPOLYE_KP = [
+  { ru: 'Позиции военных',       dx:  -6, dz:  -8, type: 'base',       owner: 'military' },
+  { ru: 'Подземный бункер',      dx:   8, dz:   6, type: 'settlement', owner: 'military' },
+  { ru: 'Старая вышка',          dx: -12, dz:   8, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Электра»',    dx:   4, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'electro'},
+  { ru: 'Заброшенный хутор',     dx:  14, dz:  -4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Жарка»',      dx: -14, dz: -12, type: 'anomaly',    owner: 'neutral', kind: 'thermal'},
+];
+
+// ---- ЗАВОД (бандиты, SoC) ----
+const FACTORY_KP = [
+  { ru: 'Цех бандитов',          dx:   0, dz:  -4, type: 'base',       owner: 'bandits'  },
+  { ru: 'Литейный цех',          dx:  10, dz:   6, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Склад трофеев',         dx: -10, dz:   4, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Ж/Д тупик',             dx:   6, dz: -14, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Кисель»',     dx: -14, dz:  -8, type: 'anomaly',    owner: 'neutral', kind: 'chem'   },
+  { ru: 'Пустырь',               dx:  14, dz: -10, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- СТАНЦИЯ (Waystation) ----
+const WAYSTATION_KP = [
+  { ru: 'Железнодорожная станция',dx:  0, dz:  -6, type: 'base',       owner: 'neutral'  },
+  { ru: 'Пакгауз',               dx:  10, dz:   4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Насыпь',                dx: -10, dz:  -4, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Трамплин»',   dx:   6, dz:  12, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { ru: 'Сторожка обходчика',    dx: -12, dz:   8, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- ЛАБИРИНТ ----
+const LABYRINTH_KP = [
+  { ru: 'Вход в Лабиринт',       dx:  -6, dz: -10, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Катакомбы',             dx:   4, dz:  -4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Воронка»',    dx:  -8, dz:   8, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { ru: 'Блуждающий пост',       dx:  10, dz:   6, type: 'settlement', owner: 'mercs'    },
+  { ru: 'Аномалия «Электра»',    dx:   2, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'electro'},
+  { ru: 'Тупик',                 dx: -14, dz:   2, type: 'chokepoint', owner: 'neutral'  },
+];
+
+// ---- ГЕНЕРАТОРЫ ----
+const GENERATORS_KP = [
+  { ru: 'Машинный зал',          dx:   4, dz:  -8, type: 'base',       owner: 'monolith' },
+  { ru: 'Трансформаторная будка',dx: -10, dz:  -4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Охлаждающие башни',     dx:  12, dz:   4, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Электра»',    dx:  -4, dz:  10, type: 'anomaly',    owner: 'neutral', kind: 'electro'},
+  { ru: 'Аномалия «Пар»',        dx:  14, dz: -10, type: 'anomaly',    owner: 'neutral', kind: 'thermal'},
+  { ru: 'Подстанция',            dx: -14, dz:   8, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- КУРЧАТОВ-37 ----
+const KURCHATOV_KP = [
+  { ru: 'Секретный объект',      dx:   0, dz:  -6, type: 'base',       owner: 'military' },
+  { ru: 'Испытательный полигон', dx:  10, dz:   6, type: 'settlement', owner: 'military' },
+  { ru: 'Лаборатория К-37',      dx:  -8, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'КПП периметра',         dx: -12, dz:  -6, type: 'chokepoint', owner: 'military' },
+  { ru: 'Аномалия «Пустота»',    dx:   6, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { ru: 'Аномалия «Заряд»',      dx:  14, dz:   0, type: 'anomaly',    owner: 'neutral', kind: 'electro'},
+];
+const GREAT_SWAMP_KP = [
+  { ru: 'Лагерь ренегатов',      dx:   4, dz:  -8, type: 'base',       owner: 'renegade' },
+  { ru: 'Деревня Красноборье',   dx: -14, dz:   0, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Фермерский двор',       dx:  10, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Церковь',               dx:  -6, dz: -14, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Блокпост ренегатов',    dx:  16, dz:  -4, type: 'chokepoint', owner: 'renegade' },
+  { ru: 'Схрон в трубах',        dx:  -8, dz:  10, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Аномалия «Студень»',    dx:   0, dz:  16, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномалия «Зыбь»',       dx: -18, dz:  10, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Старый хутор',          dx:  12, dz: -14, type: 'settlement', owner: 'neutral'  },
+];
+
+// ---- ТЁМНАЯ ЛОЩИНА — по карте из скрина ----
+const DARKSCAPE_KP = [
+  { ru: 'Ущелье',                dx: -10, dz: -20, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Мост',                  dx:  14, dz: -14, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Развилка',              dx:  16, dz:  -8, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Ферма',                 dx:  -8, dz:   0, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Руины',                 dx:   4, dz:   2, type: 'settlement', owner: 'neutral'  },
+  { ru: 'Заправка',              dx:  14, dz:   6, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Изгиб',                 dx:  -8, dz:  14, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Микроволновка',         dx:   4, dz:  16, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Тоннель',               dx:  18, dz:  14, type: 'chokepoint', owner: 'neutral'  },
+  { ru: 'Аномалия «Воронка»',    dx:  -4, dz:   8, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+];
+
+// ---- ЛИМАНСК-13 — Clear Sky, Монолит ----
+const LIMANSK_KP = [
+  { ru: 'Площадь Лиманска',      dx:   0, dz:  -6, type: 'base',       owner: 'monolith' },
+  { ru: 'Мост через канал',      dx:  14, dz:  -2, type: 'chokepoint', owner: 'monolith' },
+  { ru: 'Больница',              dx:  -8, dz:  -8, type: 'settlement', owner: 'monolith' },
+  { ru: 'Завод «Радар»',         dx:  10, dz:   8, type: 'settlement', owner: 'monolith' },
+  { ru: 'Жилой квартал',         dx:  -4, dz:   8, type: 'settlement', owner: 'neutral'  },
+  { ru: 'КПП «Монолита»',        dx: -14, dz:   2, type: 'chokepoint', owner: 'monolith' },
+  { ru: 'Переулок снайперов',    dx:   6, dz: -14, type: 'chokepoint', owner: 'monolith' },
+  { ru: 'Аномалия «Плешь»',      dx: -10, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Аномалия «Электра»',    dx:  16, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+];
+
+// ---- РАДАР ----
+const RADAR_KP = [
+  { ru: 'Антенное поле «Дуга»',  dx:   0, dz:  -8, type: 'base',       owner: 'monolith' },
+  { ru: 'Бункер управления',     dx: -10, dz:   4, type: 'settlement', owner: 'monolith' },
+  { ru: 'Казармы',               dx:  12, dz:   6, type: 'settlement', owner: 'monolith' },
+  { ru: 'Аномалия «Воронка»',    dx:  -6, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
+  { ru: 'Аномалия «Электра»',    dx:  14, dz: -12, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Периметр «Монолита»',   dx: -14, dz:  -6, type: 'chokepoint', owner: 'monolith' },
+];
+
 const KEYPOINTS = [];
 const kpByZone = [];
+
+const KP_MAP = {
+  'ZATON':           ZATON_KP,
+  'JUPITER':         JUPITER_KP,
+  'CORDON':          CORDON_KP,
+  'GARBAGE':         GARBAGE_KP,
+  'AGROPROM':        AGROPROM_KP,
+  'DARK VALLEY':     DARK_VALLEY_KP,
+  'YANTAR':          YANTAR_KP,
+  'ROSTOK':          ROSTOK_KP,
+  'ARMY WAREHOUSES': ARMY_KP,
+  'MARSH':           MARSH_KP,
+  'GREAT SWAMP':     GREAT_SWAMP_KP,
+  'DARKSCAPE':       DARKSCAPE_KP,
+  'LIMANSK-13':      LIMANSK_KP,
+  'PRIPYAT':         PRIPYAT_KP,
+  'RED FOREST':      RED_FOREST_KP,
+  'DEAD CITY':       DEAD_CITY_KP,
+  'RADAR':           RADAR_KP,
+  'DEADLANDS':       DEADLANDS_KP,
+  'CROSSROADS':      CROSSROADS_KP,
+  'ZAPOLYE':         ZAPOLYE_KP,
+  'FACTORY':         FACTORY_KP,
+  'WAYSTATION':      WAYSTATION_KP,
+  'LABYRINTH':       LABYRINTH_KP,
+  'GENERATORS':      GENERATORS_KP,
+  'KURCHATOV-37':    KURCHATOV_KP,
+};
+
 for (let zi = 0; zi < ZONES.length; zi++) {
   const z = ZONES[zi];
-  let raw = [];
-  if (zi === ZATON_IDX)   raw = ZATON_KP;
-  if (zi === JUPITER_IDX) raw = JUPITER_KP;
+  const raw = KP_MAP[z.en] || [];
   const list = raw.map(k => ({ ...k, r: z.en, zi, wx: z.wx + k.dx, wz: z.wz + k.dz }));
   kpByZone[zi] = list;
   KEYPOINTS.push(...list);
@@ -593,6 +878,87 @@ for (let zi = 0; zi < ZONES.length; zi++) {
 function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner]?.color ?? 0xbfc4b8; }
 
 // индексы фиксированных регионов (объявлены выше, перед ZATON_KP)
+
+/* ============================================================
+   СЕТЬ ДОРОГ — хардкодный граф переходов как в STALKER.
+   Каждое ребро = пара [enA, enB, тип дороги].
+   Типы: 'main' (главный тракт, широкий), 'dirt' (просёлок, узкий), 'path' (тропа, едва видна).
+   Изолированных связей нет намеренно: в некоторые локи только через посредника.
+   ============================================================ */
+const ROAD_GRAPH = [
+  // === ГЛАВНЫЙ ТРАКТ север→юг (асфальт/грунтовка) ===
+  ['CORDON',          'GARBAGE',          'main'],
+  ['GARBAGE',         'AGROPROM',         'main'],
+  ['AGROPROM',        'ROSTOK',           'main'],
+  ['ROSTOK',          'ARMY WAREHOUSES',  'main'],
+  ['ARMY WAREHOUSES', 'DEADLANDS',        'main'],
+  ['DEADLANDS',       'LABYRINTH',        'main'],
+  ['LABYRINTH',       'RED FOREST',       'main'],
+  ['RED FOREST',      'RADAR',            'main'],
+  ['RADAR',           'C.N.P.P',          'main'],
+
+  // === ЗАПАДНАЯ ВЕТКА (просёлки) ===
+  ['CORDON',          'CROSSROADS',       'dirt'],
+  ['CROSSROADS',      'DARK VALLEY',      'dirt'],
+  ['CROSSROADS',      'YANTAR',           'dirt'],
+  ['DARK VALLEY',     'FACTORY',          'dirt'],
+  ['FACTORY',         'MARSH',            'dirt'],
+  ['MARSH',           'GREAT SWAMP',      'dirt'],
+  ['YANTAR',          'ROSTOK',           'dirt'],  // Янтарь → Бар через болото
+
+  // === СЕВЕРНАЯ ВЕТКА (Зов Припяти) ===
+  ['DEAD CITY',       'LIMANSK-13',       'main'],
+  ['LIMANSK-13',      'ZATON',            'dirt'],
+  ['ZATON',           'JUPITER',          'main'],
+  ['JUPITER',         'PRIPYAT',          'main'],
+  ['PRIPYAT',         'GENERATORS',       'main'],
+  ['GENERATORS',      'C.N.P.P',          'main'],
+
+  // === ПОПЕРЕЧНЫЕ СВЯЗИ ===
+  ['DEAD CITY',       'MARSH',            'dirt'],   // Мёртвый город → Топи
+  ['AGROPROM',        'DARK VALLEY',      'dirt'],   // Агропром → Тёмная долина
+  ['ARMY WAREHOUSES', 'ROSTOK',           'dirt'],   // прямой путь на Бар
+  ['DEADLANDS',       'YANTAR',           'path'],   // тропа через пустошь
+  ['RED FOREST',      'LIMANSK-13',       'path'],   // заражённая тропа
+  ['RADAR',           'PRIPYAT',          'path'],   // тропа Монолита
+
+  // === ТУПИКИ (только через соседа) ===
+  ['CORDON',          'KURCHATOV-37',     'dirt'],   // военный спецпуть на юг
+  ['ARMY WAREHOUSES', 'ZAPOLYE',          'path'],   // просёлок в Заполье
+  ['LABYRINTH',       'DARKSCAPE',        'path'],   // едва заметная тропа
+  ['GARBAGE',         'WAYSTATION',       'dirt'],   // ж/д ветка на Станцию
+  ['CROSSROADS',      'FACTORY',          'path'],   // объездная
+];
+
+// Предрасчёт: для каждого ребра храним мировые координаты и ширину
+const ROAD_WIDTH = { main: 3.2, dirt: 1.8, path: 0.9 };
+const _roadSegs = ROAD_GRAPH.map(([a, b, type]) => {
+  const za = ZONES.find(z => z.en === a);
+  const zb = ZONES.find(z => z.en === b);
+  if (!za || !zb) return null;
+  return { ax: za.wx, az: za.wz, bx: zb.wx, bz: zb.wz, w: ROAD_WIDTH[type], type };
+}).filter(Boolean);
+
+// Возвращает интенсивность дороги [0..1] в точке (wx,wz)
+function ROAD_COLOR_AT(wx, wz) {
+  let best = 0;
+  for (const seg of _roadSegs) {
+    const abx = seg.bx - seg.ax, abz = seg.bz - seg.az;
+    const len2 = abx * abx + abz * abz || 1;
+    const t = Math.max(0, Math.min(1, ((wx - seg.ax) * abx + (wz - seg.az) * abz) / len2));
+    const dx = wx - (seg.ax + abx * t), dz = wz - (seg.az + abz * t);
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    // добавляем небольшой шум чтобы дорога не была идеально прямой
+    const noise = 0.4 * valueNoise(wx * 0.18 + seg.ax * 0.01, wz * 0.18 + seg.az * 0.01);
+    const w = seg.w + noise * 0.8;
+    if (dist < w) {
+      const intensity = (seg.type === 'main' ? 1.0 : seg.type === 'dirt' ? 0.75 : 0.5)
+                      * smooth(1 - dist / w);
+      if (intensity > best) best = intensity;
+    }
+  }
+  return best;
+}
 
 let idx = 0;
 for (let gz = 0; gz < GZ; gz++) {
@@ -687,24 +1053,12 @@ for (let gz = 0; gz < GZ; gz++) {
       if (bc) col.lerp(bc, biomeInfl * 0.48);
     }
 
-    // ---- просека/дорога между зонами (светлая полоска) ----
-    // ищем вторую ближайшую зону
-    let best2d = Infinity, best2 = null;
-    for (const z of ZONES) {
-      const d = (z.wx - wx) ** 2 + (z.wz - wz) ** 2;
-      if (d < (near.z.wx - wx) ** 2 + (near.z.wz - wz) ** 2 + 0.01) continue;
-      if (d < best2d) { best2d = d; best2 = z; }
-    }
-    if (best2) {
-      const d1 = Math.hypot(near.z.wx - wx, near.z.wz - wz);
-      const d2 = Math.hypot(best2.wx - wx, best2.wz - wz);
-      const edge2 = d1 + d2;
-      // чем ближе к линии Вороного — тем больше шанс быть дорогой
-      const roadT = Math.max(0, 1 - Math.abs(d1 - d2) / 3.5) * Math.max(0, 1 - edge2 / 90);
-      if (roadT > 0.7 && !isWater) {
-        col.lerp(new THREE.Color(0x6b6050), roadT * 0.38);
-        h *= 1 - roadT * 0.12;
-      }
+    // ---- дороги: хардкодная сеть маршрутов (как в STALKER) ----
+    // вычисляется один раз до цикла, здесь только lookupRoadAt(wx,wz)
+    const roadCol = ROAD_COLOR_AT(wx, wz);
+    if (roadCol > 0 && !isWater) {
+      col.lerp(new THREE.Color(0x6b6050), roadCol * 0.42);
+      h *= 1 - roadCol * 0.14;
     }
 
     h = Math.max(0.5, h);
@@ -1028,28 +1382,168 @@ for (const k of KEYPOINTS) {
   }
 }
 
-/* ---- постройки на точках Юпитера ---- */
-const JUPITER_BUILD = {
-  'Янов':                    (k, rnd) => archVillage(k, JUPITER_IDX, k.gTop, rnd),
-  'Градирня':                (k, rnd) => archFactory(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(0x6a6a6a)),
-  'Копачи':                  (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 3),
-  'ЗРК «Болото»':            (k, rnd) => archMilitary(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.military.color)),
-  'Бункер учёных':           (k, rnd) => archBunker(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.eco.color)),
-  'КОШ':                     (k, rnd) => archMilitary(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.military.color)),
-  'Слободка':                (k, rnd) => archVillage(k, JUPITER_IDX, k.gTop, rnd),
-  'Карьер':                  (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
-  'Восточный тоннель':       (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
-  'Вентиляционный комплекс': (k, rnd) => archFactory(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(0x7a7070)),
-  'Склад контейнеров':       (k, rnd) => archWarehouses(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.bandits.color)),
-  'Полуостанок':             (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
+/* ---- постройки на точках всех регионов ---- */
+function buildKPsFor(enName, zoneIdx, buildMap) {
+  for (const k of KEYPOINTS) {
+    if (k.zi !== zoneIdx) continue;
+    const fn = buildMap[k.ru];
+    if (!fn) continue;
+    const rnd = mulberry32(8500 + zoneIdx * 97 + Math.round(Math.abs(k.dx) * 41 + Math.abs(k.dz) * 57));
+    curPivotX = k.wx; curPivotZ = k.wz;
+    fn(k, rnd);
+  }
+}
+
+const ALL_BUILDS = {
+  'CORDON': {
+    'КПП «Кордон»':          (k,r) => archMilitary(k, KP_ZI('CORDON'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Деревня новичков':      (k,r) => archVillage(k, KP_ZI('CORDON'), k.gTop, r),
+    'Брошенная ферма':       (k,r) => archRuins(k, KP_ZI('CORDON'), k.gTop, r, null, 2),
+    'Блокпост сталкеров':    (k,r) => archVillage(k, KP_ZI('CORDON'), k.gTop, r),
+    'Лагерь у костра':       (k,r) => archVillage(k, KP_ZI('CORDON'), k.gTop, r),
+  },
+  'GARBAGE': {
+    'Автопарк':              (k,r) => archJunkyard(k, KP_ZI('GARBAGE'), k.gTop, r),
+    'Завод по переработке':  (k,r) => archFactory(k, KP_ZI('GARBAGE'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Лагерь Сталкеров':      (k,r) => archVillage(k, KP_ZI('GARBAGE'), k.gTop, r),
+    'Центральный склад':     (k,r) => archWarehouses(k, KP_ZI('GARBAGE'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Мусорный курган':       (k,r) => archRuins(k, KP_ZI('GARBAGE'), k.gTop, r, null, 2),
+  },
+  'AGROPROM': {
+    'НИИ Агропром':          (k,r) => archInstitute(k, KP_ZI('AGROPROM'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Стоянка техники':       (k,r) => archMilitary(k, KP_ZI('AGROPROM'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Заброшенный ток':       (k,r) => archRuins(k, KP_ZI('AGROPROM'), k.gTop, r, null, 2),
+    'Силосные башни':        (k,r) => archFactory(k, KP_ZI('AGROPROM'), k.gTop, r, new THREE.Color(0x8a8070)),
+    'Фермерский дом':        (k,r) => archVillage(k, KP_ZI('AGROPROM'), k.gTop, r),
+  },
+  'DARK VALLEY': {
+    'База «Свободы»':        (k,r) => archCompound(k, KP_ZI('DARK VALLEY'), k.gTop, r, new THREE.Color(FACTIONS.freedom.color)),
+    'Лаборатория X-18':      (k,r) => archBunker(k, KP_ZI('DARK VALLEY'), k.gTop, r, new THREE.Color(0x4a4a6a)),
+    'Завод им. Скадовского': (k,r) => archFactory(k, KP_ZI('DARK VALLEY'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Лагерь бандитов':       (k,r) => archCompound(k, KP_ZI('DARK VALLEY'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Заброшенный посёлок':   (k,r) => archRuins(k, KP_ZI('DARK VALLEY'), k.gTop, r, null, 3),
+  },
+  'YANTAR': {
+    'Бункер учёных':         (k,r) => archBunker(k, KP_ZI('YANTAR'), k.gTop, r, new THREE.Color(FACTIONS.eco.color)),
+    'Завод «Янтарь»':        (k,r) => archFactory(k, KP_ZI('YANTAR'), k.gTop, r, new THREE.Color(0x7a7a5a)),
+    'Лаборатория X-16':      (k,r) => archBunker(k, KP_ZI('YANTAR'), k.gTop, r, new THREE.Color(0x5a5a7a)),
+    'Деревня Янтарь':        (k,r) => archVillage(k, KP_ZI('YANTAR'), k.gTop, r),
+    'Вышка связи':           (k,r) => archMilitary(k, KP_ZI('YANTAR'), k.gTop, r, new THREE.Color(0x6a7060)),
+  },
+  'ROSTOK': {
+    'Бар «100 рентген»':     (k,r) => archVillage(k, KP_ZI('ROSTOK'), k.gTop, r),
+    'Ангары Ростока':        (k,r) => archWarehouses(k, KP_ZI('ROSTOK'), k.gTop, r, new THREE.Color(FACTIONS.duty.color)),
+    'Позиции «Долга»':       (k,r) => archMilitary(k, KP_ZI('ROSTOK'), k.gTop, r, new THREE.Color(FACTIONS.duty.color)),
+    'Брошенный завод':       (k,r) => archFactory(k, KP_ZI('ROSTOK'), k.gTop, r, new THREE.Color(0x6a6a6a)),
+    'КПП «Долга»':           (k,r) => archMilitary(k, KP_ZI('ROSTOK'), k.gTop, r, new THREE.Color(FACTIONS.duty.color)),
+  },
+  'ARMY WAREHOUSES': {
+    'Главный склад':         (k,r) => archWarehouses(k, KP_ZI('ARMY WAREHOUSES'), k.gTop, r, new THREE.Color(FACTIONS.freedom.color)),
+    'Бункер «Свободы»':      (k,r) => archBunker(k, KP_ZI('ARMY WAREHOUSES'), k.gTop, r, new THREE.Color(FACTIONS.freedom.color)),
+    'Оружейные хранилища':   (k,r) => archWarehouses(k, KP_ZI('ARMY WAREHOUSES'), k.gTop, r, new THREE.Color(0x7a8a5a)),
+    'Позиции «Долга»':       (k,r) => archMilitary(k, KP_ZI('ARMY WAREHOUSES'), k.gTop, r, new THREE.Color(FACTIONS.duty.color)),
+    'Техпарк':               (k,r) => archFactory(k, KP_ZI('ARMY WAREHOUSES'), k.gTop, r, new THREE.Color(0x6a7060)),
+  },
+  'MARSH': {
+    'База «Чистого неба»':   (k,r) => archCompound(k, KP_ZI('MARSH'), k.gTop, r, new THREE.Color(FACTIONS.csky.color)),
+    'Деревня в Топях':       (k,r) => archVillage(k, KP_ZI('MARSH'), k.gTop, r),
+    'Заброшенная ферма':     (k,r) => archRuins(k, KP_ZI('MARSH'), k.gTop, r, null, 2),
+    'Лагерь болотников':     (k,r) => archVillage(k, KP_ZI('MARSH'), k.gTop, r),
+  },
+  'PRIPYAT': {
+    'Гостиница «Полесье»':   (k,r) => archInstitute(k, KP_ZI('PRIPYAT'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+    'Торговый центр':        (k,r) => archRuins(k, KP_ZI('PRIPYAT'), k.gTop, r, null, 4),
+    'Стадион':               (k,r) => archRuins(k, KP_ZI('PRIPYAT'), k.gTop, r, null, 3),
+    'Завод Юпитер (север)':  (k,r) => archFactory(k, KP_ZI('PRIPYAT'), k.gTop, r, new THREE.Color(0x7a7a7a)),
+    'Площадь Курчатова':     (k,r) => archRuins(k, KP_ZI('PRIPYAT'), k.gTop, r, null, 3),
+  },
+  'RED FOREST': {
+    'Опытная станция':       (k,r) => archRuins(k, KP_ZI('RED FOREST'), k.gTop, r, null, 2),
+    'Брошенный пост':        (k,r) => archRuins(k, KP_ZI('RED FOREST'), k.gTop, r, null, 2),
+  },
+  'DEAD CITY': {
+    'Квартал наёмников':     (k,r) => archCompound(k, KP_ZI('DEAD CITY'), k.gTop, r, new THREE.Color(FACTIONS.mercs.color)),
+    'Гостиница':             (k,r) => archRuins(k, KP_ZI('DEAD CITY'), k.gTop, r, null, 4),
+    'Подвалы завода':        (k,r) => archFactory(k, KP_ZI('DEAD CITY'), k.gTop, r, new THREE.Color(0x6a6a6a)),
+    'Площадь города':        (k,r) => archRuins(k, KP_ZI('DEAD CITY'), k.gTop, r, null, 3),
+  },
+  'DEADLANDS': {
+    'Заброшенный блокпост':  (k,r) => archMilitary(k, KP_ZI('DEADLANDS'), k.gTop, r, new THREE.Color(0x7a7a6a)),
+    'Ржавые цистерны':       (k,r) => archRuins(k, KP_ZI('DEADLANDS'), k.gTop, r, null, 2),
+    'Брошенный лагерь':      (k,r) => archRuins(k, KP_ZI('DEADLANDS'), k.gTop, r, null, 2),
+  },
+  'CROSSROADS': {
+    'Заправочная станция':   (k,r) => archVillage(k, KP_ZI('CROSSROADS'), k.gTop, r),
+    'Сожжённая деревня':     (k,r) => archRuins(k, KP_ZI('CROSSROADS'), k.gTop, r, null, 2),
+    'Схрон у дороги':        (k,r) => archVillage(k, KP_ZI('CROSSROADS'), k.gTop, r),
+  },
+  'ZAPOLYE': {
+    'Позиции военных':       (k,r) => archMilitary(k, KP_ZI('ZAPOLYE'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Подземный бункер':      (k,r) => archBunker(k, KP_ZI('ZAPOLYE'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Заброшенный хутор':     (k,r) => archVillage(k, KP_ZI('ZAPOLYE'), k.gTop, r),
+  },
+  'FACTORY': {
+    'Цех бандитов':          (k,r) => archFactory(k, KP_ZI('FACTORY'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Литейный цех':          (k,r) => archFactory(k, KP_ZI('FACTORY'), k.gTop, r, new THREE.Color(0x7a6a5a)),
+    'Склад трофеев':         (k,r) => archWarehouses(k, KP_ZI('FACTORY'), k.gTop, r, new THREE.Color(FACTIONS.bandits.color)),
+    'Пустырь':               (k,r) => archRuins(k, KP_ZI('FACTORY'), k.gTop, r, null, 2),
+  },
+  'WAYSTATION': {
+    'Пакгауз':               (k,r) => archWarehouses(k, KP_ZI('WAYSTATION'), k.gTop, r, new THREE.Color(0x7a7a6a)),
+    'Сторожка обходчика':    (k,r) => archVillage(k, KP_ZI('WAYSTATION'), k.gTop, r),
+  },
+  'LABYRINTH': {
+    'Катакомбы':             (k,r) => archRuins(k, KP_ZI('LABYRINTH'), k.gTop, r, null, 3),
+    'Блуждающий пост':       (k,r) => archMilitary(k, KP_ZI('LABYRINTH'), k.gTop, r, new THREE.Color(FACTIONS.mercs.color)),
+    'Тупик':                 (k,r) => archRuins(k, KP_ZI('LABYRINTH'), k.gTop, r, null, 2),
+  },
+  'GENERATORS': {
+    'Машинный зал':          (k,r) => archFactory(k, KP_ZI('GENERATORS'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+    'Охлаждающие башни':     (k,r) => archFactory(k, KP_ZI('GENERATORS'), k.gTop, r, new THREE.Color(0x8a8a8a)),
+    'Подстанция':            (k,r) => archRuins(k, KP_ZI('GENERATORS'), k.gTop, r, null, 2),
+  },
+  'KURCHATOV-37': {
+    'Секретный объект':      (k,r) => archBunker(k, KP_ZI('KURCHATOV-37'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Испытательный полигон': (k,r) => archMilitary(k, KP_ZI('KURCHATOV-37'), k.gTop, r, new THREE.Color(FACTIONS.military.color)),
+    'Лаборатория К-37':      (k,r) => archBunker(k, KP_ZI('KURCHATOV-37'), k.gTop, r, new THREE.Color(0x5a5a7a)),
+  },
+  'GREAT SWAMP': {
+    'Лагерь ренегатов':      (k,r) => archCompound(k, KP_ZI('GREAT SWAMP'), k.gTop, r, new THREE.Color(FACTIONS.renegade.color)),
+    'Деревня Красноборье':   (k,r) => archVillage(k, KP_ZI('GREAT SWAMP'), k.gTop, r),
+    'Фермерский двор':       (k,r) => archVillage(k, KP_ZI('GREAT SWAMP'), k.gTop, r),
+    'Церковь':               (k,r) => archRuins(k, KP_ZI('GREAT SWAMP'), k.gTop, r, null, 2),
+    'Старый хутор':          (k,r) => archVillage(k, KP_ZI('GREAT SWAMP'), k.gTop, r),
+    'Схрон в трубах':        (k,r) => archRuins(k, KP_ZI('GREAT SWAMP'), k.gTop, r, null, 1),
+  },
+  'DARKSCAPE': {
+    'Ферма':                 (k,r) => archVillage(k, KP_ZI('DARKSCAPE'), k.gTop, r),
+    'Руины':                 (k,r) => archRuins(k, KP_ZI('DARKSCAPE'), k.gTop, r, null, 3),
+    'Заправка':              (k,r) => archVillage(k, KP_ZI('DARKSCAPE'), k.gTop, r),
+  },
+  'LIMANSK-13': {
+    'Площадь Лиманска':      (k,r) => archRuins(k, KP_ZI('LIMANSK-13'), k.gTop, r, null, 4),
+    'Больница':              (k,r) => archInstitute(k, KP_ZI('LIMANSK-13'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+    'Завод «Радар»':         (k,r) => archFactory(k, KP_ZI('LIMANSK-13'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+    'Жилой квартал':         (k,r) => archRuins(k, KP_ZI('LIMANSK-13'), k.gTop, r, null, 3),
+  },
+  'RADAR': {
+    'Антенное поле «Дуга»':  (k,r) => archDuga(k, KP_ZI('RADAR'), k.gTop, r),
+    'Бункер управления':     (k,r) => archBunker(k, KP_ZI('RADAR'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+    'Казармы':               (k,r) => archMilitary(k, KP_ZI('RADAR'), k.gTop, r, new THREE.Color(FACTIONS.monolith.color)),
+  },
 };
-for (const k of KEYPOINTS) {
-  if (k.zi !== JUPITER_IDX) continue;
-  const build = JUPITER_BUILD[k.ru];
-  if (!build) continue;
-  const rnd = mulberry32(8000 + Math.round(k.dx * 41) + Math.round(k.dz * 57));
-  curPivotX = k.wx; curPivotZ = k.wz;
-  build(k, rnd);
+
+// кеш: имя зоны → её zi
+const _zoneIdxCache = {};
+function KP_ZI(en) {
+  if (_zoneIdxCache[en] !== undefined) return _zoneIdxCache[en];
+  return (_zoneIdxCache[en] = ZONES.findIndex(z => z.en === en));
+}
+
+for (const [en, buildMap] of Object.entries(ALL_BUILDS)) {
+  const zi = KP_ZI(en);
+  if (zi < 0) continue;
+  buildKPsFor(en, zi, buildMap);
 }
 const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
 buildings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

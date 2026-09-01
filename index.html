@@ -2564,14 +2564,62 @@ function removeUnit(u) {
 }
 
 // ---- движение юнита к точке ----
+// Находит ближайшую точку на дорожной сети к позиции (x,z)
+function snapToRoad(x, z) {
+  let bestX = x, bestZ = z, bestD = Infinity;
+  for (const seg of _roadSegs) {
+    const abx = seg.bx - seg.ax, abz = seg.bz - seg.az;
+    const len2 = abx*abx + abz*abz || 1;
+    const t = Math.max(0, Math.min(1, ((x-seg.ax)*abx + (z-seg.az)*abz) / len2));
+    const px = seg.ax + abx*t, pz = seg.az + abz*t;
+    const d = Math.hypot(x-px, z-pz);
+    if (d < bestD) { bestD = d; bestX = px; bestZ = pz; }
+  }
+  return { x: bestX, z: bestZ, d: bestD };
+}
+
 function moveUnit(u, dt2) {
   if (!u.targetPos) return true;
-  const dx = u.targetPos.x - u.x, dz = u.targetPos.z - u.z;
-  const d = Math.hypot(dx, dz);
-  if (d < 1.5) return true;
+  const tx = u.targetPos.x, tz = u.targetPos.z;
+  const totalD = Math.hypot(tx - u.x, tz - u.z);
+  if (totalD < 1.5) return true;
+
   const step = u.speed * dt2;
-  u.x += (dx / d) * step;
-  u.z += (dz / d) * step;
+
+  // Ищем ближайшую дорогу к юниту
+  const snap = snapToRoad(u.x, u.z);
+  const onRoad = snap.d < 8; // в пределах 8 юнитов от дороги — идём по ней
+
+  if (onRoad) {
+    // Движение вдоль дороги: сначала выходим на ближайшую точку дороги,
+    // потом идём по дороге к ближайшему концу сегмента ведущего к цели
+    const snapTarget = snapToRoad(tx, tz);
+
+    // Вектор: сначала к дороге, потом к цели по дороге
+    let wx, wz;
+    if (snap.d > 1.0) {
+      // ещё не на дороге — подходим к ней
+      wx = snap.x; wz = snap.z;
+    } else {
+      // уже на дороге — идём к точке на дороге ближайшей к цели
+      // но с небольшим притяжением к финальной цели
+      const blend = Math.min(1, totalD / 30); // близко к цели — сходим с дороги
+      wx = snapTarget.x * blend + tx * (1-blend);
+      wz = snapTarget.z * blend + tz * (1-blend);
+    }
+
+    const ddx = wx - u.x, ddz = wz - u.z;
+    const dd = Math.hypot(ddx, ddz) || 1;
+    u.x += (ddx/dd) * step;
+    u.z += (ddz/dd) * step;
+  } else {
+    // далеко от дороги — идём напрямую к ближайшей дороге
+    const dx = snap.x - u.x, dz = snap.z - u.z;
+    const d = Math.hypot(dx, dz) || 1;
+    u.x += (dx/d) * step;
+    u.z += (dz/d) * step;
+  }
+
   return false;
 }
 

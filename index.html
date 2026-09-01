@@ -209,6 +209,7 @@
 <div id="tele" class="hud">
   <div class="panel corner">
     <div class="readout"><span class="k">ВРЕМЯ</span><span class="v" id="clock">--:--</span></div>
+    <div class="readout"><span class="k">ДЕНЬ</span><span class="v" id="dayCount">1</span></div>
     <div class="readout"><span class="k">ПОГОДА</span><span class="v" id="wx">—</span></div>
     <div class="readout"><span class="k">ФОН</span><span class="v" id="rad">0.00 μSv</span></div>
     <div class="readout"><span class="k">ТОЧКИ</span><span class="v" id="resPt">—</span></div>
@@ -998,6 +999,76 @@ const ROAD_GRAPHS = [
     ['CORDON','KURCHATOV-37','main'],  // военный маршрут стал главным
     ['GARBAGE','WAYSTATION','dirt'],['LABYRINTH','DARKSCAPE','path'],
   ],
+  // === ВАРИАНТ 4 — аномальная буря разрезала карту пополам ===
+  [
+    // Северный кластер (ЗП)
+    ['ZATON','JUPITER','main'],['JUPITER','PRIPYAT','main'],['PRIPYAT','GENERATORS','main'],
+    ['GENERATORS','C.N.P.P','main'],['DEAD CITY','LIMANSK-13','main'],
+    ['LIMANSK-13','RED FOREST','dirt'],['RED FOREST','RADAR','main'],['RADAR','C.N.P.P','dirt'],
+    ['ZATON','DEAD CITY','dirt'],
+    // Южный кластер (SoC)
+    ['CORDON','GARBAGE','main'],['GARBAGE','AGROPROM','main'],['AGROPROM','ROSTOK','main'],
+    ['ROSTOK','YANTAR','main'],['YANTAR','DARK VALLEY','dirt'],
+    ['DARK VALLEY','FACTORY','dirt'],['FACTORY','MARSH','main'],
+    ['MARSH','GREAT SWAMP','dirt'],['CORDON','KURCHATOV-37','dirt'],
+    // Единственный мост между кластерами — через Лабиринт
+    ['LABYRINTH','DEADLANDS','path'],['DEADLANDS','ARMY WAREHOUSES','path'],
+    ['ARMY WAREHOUSES','ROSTOK','dirt'],['LABYRINTH','DARKSCAPE','path'],
+    ['GARBAGE','WAYSTATION','dirt'],['ARMY WAREHOUSES','ZAPOLYE','path'],
+  ],
+  // === ВАРИАНТ 5 — военные закрыли северные маршруты, всё через центр ===
+  [
+    ['CORDON','GARBAGE','main'],['GARBAGE','CROSSROADS','main'],  // Свалка→Перекрёсток стала главной
+    ['CROSSROADS','AGROPROM','main'],['AGROPROM','YANTAR','main'],
+    ['YANTAR','ROSTOK','main'],['ROSTOK','ARMY WAREHOUSES','main'],
+    ['ARMY WAREHOUSES','DEADLANDS','main'],['DEADLANDS','LABYRINTH','main'],
+    ['LABYRINTH','RED FOREST','main'],['RED FOREST','C.N.P.P','dirt'],
+    ['CROSSROADS','DARK VALLEY','dirt'],['DARK VALLEY','ZAPOLYE','dirt'],
+    ['DARK VALLEY','FACTORY','dirt'],['FACTORY','MARSH','dirt'],['MARSH','GREAT SWAMP','dirt'],
+    ['GARBAGE','WAYSTATION','dirt'],['ARMY WAREHOUSES','ROSTOK','dirt'],
+    // Север почти отрезан
+    ['DEAD CITY','LIMANSK-13','path'],['LIMANSK-13','ZATON','path'],
+    ['ZATON','JUPITER','dirt'],['JUPITER','PRIPYAT','path'],
+    ['PRIPYAT','RADAR','dirt'],['RADAR','C.N.P.P','main'],
+    ['CORDON','KURCHATOV-37','main'],  // военный маршрут открыт полностью
+    ['LABYRINTH','DARKSCAPE','dirt'],
+  ],
+  // === ВАРИАНТ 6 — Монолит расширился, пути к ЧАЭС перекрыты, обходы ===
+  [
+    ['CORDON','GARBAGE','main'],['GARBAGE','AGROPROM','main'],
+    ['AGROPROM','ROSTOK','main'],['ROSTOK','ARMY WAREHOUSES','main'],
+    // Прямой путь к ЧАЭС заблокирован — идём в обход через Янтарь+Радар
+    ['YANTAR','LABYRINTH','main'],['LABYRINTH','RADAR','main'],
+    ['RADAR','RED FOREST','dirt'],['RED FOREST','LIMANSK-13','dirt'],
+    ['LIMANSK-13','DEAD CITY','main'],
+    ['CROSSROADS','YANTAR','main'],['CORDON','CROSSROADS','dirt'],
+    ['DARK VALLEY','CROSSROADS','dirt'],['FACTORY','DARK VALLEY','dirt'],
+    ['MARSH','FACTORY','dirt'],['GREAT SWAMP','MARSH','main'],
+    ['ZATON','DEAD CITY','main'],['JUPITER','ZATON','dirt'],
+    ['PRIPYAT','JUPITER','main'],['GENERATORS','PRIPYAT','dirt'],
+    ['C.N.P.P','GENERATORS','main'],  // к ЧАЭС только с севера
+    ['ARMY WAREHOUSES','DEADLANDS','path'],['DEADLANDS','YANTAR','path'],
+    ['CORDON','KURCHATOV-37','dirt'],['GARBAGE','WAYSTATION','path'],
+    ['ARMY WAREHOUSES','ZAPOLYE','path'],
+  ],
+  // === ВАРИАНТ 7 — после серии выбросов: хаос, короткие случайные пути ===
+  [
+    ['CORDON','AGROPROM','main'],  // прямой прыжок
+    ['AGROPROM','DARK VALLEY','main'],['DARK VALLEY','LABYRINTH','main'],
+    ['LABYRINTH','C.N.P.P','main'],  // короткий северный маршрут через Лабиринт
+    ['CORDON','GARBAGE','dirt'],['GARBAGE','ROSTOK','dirt'],
+    ['ROSTOK','YANTAR','dirt'],['YANTAR','FACTORY','main'],
+    ['FACTORY','GREAT SWAMP','main'],['GREAT SWAMP','MARSH','dirt'],
+    ['MARSH','DEAD CITY','dirt'],['DEAD CITY','ZATON','main'],
+    ['ZATON','LIMANSK-13','main'],['LIMANSK-13','RADAR','main'],
+    ['RADAR','C.N.P.P','dirt'],
+    ['JUPITER','PRIPYAT','dirt'],['PRIPYAT','GENERATORS','dirt'],
+    ['GENERATORS','RADAR','main'],  // обход к ЧАЭС с востока
+    ['ARMY WAREHOUSES','DEADLANDS','path'],['DEADLANDS','RED FOREST','path'],
+    ['CORDON','KURCHATOV-37','main'],['GARBAGE','WAYSTATION','dirt'],
+    ['CROSSROADS','YANTAR','dirt'],['LABYRINTH','DARKSCAPE','dirt'],
+    ['ARMY WAREHOUSES','ZAPOLYE','dirt'],
+  ],
 ];
 
 let _roadGraphIdx = 0;
@@ -1524,6 +1595,89 @@ function rebuildRoads() {
   scene.userData.monoBeam     = aura1;
 }
 
+/* ============================================================
+   МОЛНИИ НАД ГЕНЕРАТОРАМИ — активируются при выбросе
+   ============================================================ */
+{
+  const genZone = ZONES.find(z => z.en === 'GENERATORS');
+  const gx = genZone.wx, gz = genZone.wz;
+  const gTop = topAtWorld(gx, gz) + 14; // над куполами
+
+  // Красное облако-зарево над генераторами
+  const stormCloudMat = new THREE.MeshBasicMaterial({
+    color: 0xcc2200, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+  });
+  const stormCloud = new THREE.Mesh(new THREE.SphereGeometry(55, 16, 8), stormCloudMat);
+  stormCloud.scale.set(1, 0.3, 1);
+  stormCloud.position.set(gx, gTop + 40, gz);
+  scene.add(stormCloud);
+
+  // Фиолетовое ядро облака
+  const stormCoreMat = new THREE.MeshBasicMaterial({
+    color: 0x6020aa, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+  });
+  const stormCore = new THREE.Mesh(new THREE.SphereGeometry(22, 12, 6), stormCoreMat);
+  stormCore.scale.set(1, 0.4, 1);
+  stormCore.position.set(gx, gTop + 44, gz);
+  scene.add(stormCore);
+
+  // 4 молнии — по одной к каждому куполу
+  const lightningMat = new THREE.LineBasicMaterial({
+    color: 0xaaddff, transparent: true, opacity: 0, linewidth: 2
+  });
+  const lightnings = [];
+  const domPos = [[-7,-7],[7,-7],[-7,7],[7,7]];
+  for (const [dx, dz] of domPos) {
+    const pts = [];
+    const steps = 8;
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const jx = s > 0 && s < steps ? (Math.random()-0.5)*6 : 0;
+      const jz = s > 0 && s < steps ? (Math.random()-0.5)*6 : 0;
+      pts.push(new THREE.Vector3(
+        gx + dx * t + jx,
+        gTop + 45 - (gTop + 45 - (gTop + 14)) * t,
+        gz + dz * t + jz
+      ));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    const mat = lightningMat.clone();
+    const bolt = new THREE.Line(geo, mat);
+    scene.add(bolt);
+    lightnings.push({ bolt, mat, baseX: gx + dx, baseZ: gz + dz, gTop: gTop + 14 });
+  }
+
+  // Точечный свет-вспышка в центре
+  const stormLight = new THREE.PointLight(0x4422cc, 0, 300);
+  stormLight.position.set(gx, gTop + 40, gz);
+  scene.add(stormLight);
+
+  scene.userData.genStorm = { stormCloudMat, stormCoreMat, lightnings, stormLight };
+
+  // ---- волны от генераторов — расходятся по всей Зоне при выбросе ----
+  const WAVE_COUNT = 5;
+  const waves = [];
+  for (let i = 0; i < WAVE_COUNT; i++) {
+    const wGeo = new THREE.RingGeometry(1, 1.04, 64);
+    const wMat = new THREE.MeshBasicMaterial({
+      color: 0x7733cc, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+    });
+    const wMesh = new THREE.Mesh(wGeo, wMat);
+    wMesh.rotation.x = -Math.PI / 2;
+    wMesh.position.set(genZone.wx, gTop + 2, genZone.wz);
+    wMesh.scale.setScalar(1);
+    scene.add(wMesh);
+    waves.push({ mesh: wMesh, mat: wMat, t: i / WAVE_COUNT }); // сдвиг фазы
+  }
+  scene.userData.genStorm.waves = waves;
+  scene.userData.genStorm.genX  = genZone.wx;
+  scene.userData.genStorm.genZ  = genZone.wz;
+  scene.userData.genStorm.genY  = gTop + 2;
+}
+
 
 /* ============================================================
    ЗДАНИЯ-LEGO (instanced, растут снизу вверх при зуме)
@@ -1748,6 +1902,71 @@ function archDeadTrees(z, zi, gTop, rnd) {
 }
 
 // ЧАЭС — арка НБК + турбинный зал + вентиляционная труба
+// Генераторы — 4 антенных купола + центральная мачта (как в STALKER 2)
+function archGenerators(z, zi, gTop, rnd) {
+  const metal = () => new THREE.Color(0x5a6068).offsetHSL(0, 0, (rnd()-0.5)*0.07);
+  const dark  = () => new THREE.Color(0x2e3238).offsetHSL(0, 0, (rnd()-0.5)*0.05);
+  const cyan  = () => new THREE.Color(0x3a8090).offsetHSL(0, 0, (rnd()-0.5)*0.08);
+
+  // 4 купола по углам (как на фото)
+  const domPos = [[-7,-7],[7,-7],[-7,7],[7,7]];
+  for (const [dx, dz] of domPos) {
+    const bx = z.wx + dx, bz = z.wz + dz;
+    // ножка-стойка
+    for (let ly = 0; ly < 4; ly++) pushVox(bx, bz, ly, gTop, metal(), zi);
+    // купол — горизонтальные кольца сужающиеся к верху
+    const rings = [
+      { r:3, h:4 }, { r:3, h:5 }, { r:3, h:6 },
+      { r:2, h:7 }, { r:2, h:8 }, { r:1, h:9 }, { r:0, h:10 },
+    ];
+    for (const { r, h } of rings) {
+      if (r === 0) { pushVox(bx, bz, h, gTop, cyan(), zi); continue; }
+      for (let a = 0; a < 16; a++) {
+        const ang = a / 16 * Math.PI * 2;
+        const cx = Math.round(Math.cos(ang) * r);
+        const cz2 = Math.round(Math.sin(ang) * r);
+        pushVox(bx + cx, bz + cz2, h, gTop, metal(), zi);
+      }
+      // заполняем дно купола
+      if (h === 4) {
+        for (let cx = -r; cx <= r; cx++)
+          for (let cz2 = -r; cz2 <= r; cz2++)
+            if (Math.hypot(cx, cz2) <= r)
+              pushVox(bx + cx, bz + cz2, h, gTop, dark(), zi);
+      }
+    }
+    // характерные «рёбра» купола
+    for (let a = 0; a < 4; a++) {
+      const ang = a / 4 * Math.PI * 2;
+      for (let h2 = 4; h2 <= 10; h2++) {
+        const frac = (h2 - 4) / 6;
+        const rr = Math.round((1 - frac) * 3);
+        if (rr > 0) pushVox(bx + Math.round(Math.cos(ang)*rr), bz + Math.round(Math.sin(ang)*rr), h2, gTop, dark(), zi);
+      }
+    }
+    // молниеотвод на куполе
+    for (let ly = 10; ly < 14; ly++) pushVox(bx, bz, ly, gTop, metal(), zi);
+  }
+
+  // Центральная мачта — высокая тонкая башня
+  const mx = z.wx, mz = z.wz;
+  for (let ly = 0; ly < 22; ly++) {
+    const w = ly < 4 ? 2 : ly < 10 ? 1 : 0;
+    if (w === 0) { pushVox(mx, mz, ly, gTop, metal(), zi); continue; }
+    for (let cx = -w; cx <= w; cx++)
+      for (let cz2 = -w; cz2 <= w; cz2++)
+        if (Math.abs(cx) === w || Math.abs(cz2) === w)
+          pushVox(mx + cx, mz + cz2, ly, gTop, dark(), zi);
+  }
+  // горизонтальные фермы на мачте
+  for (const h2 of [8, 14, 18]) {
+    for (let cx = -4; cx <= 4; cx++) pushVox(mx + cx, mz, h2, gTop, metal(), zi);
+    for (let cz2 = -4; cz2 <= 4; cz2++) pushVox(mx, mz + cz2, h2, gTop, metal(), zi);
+  }
+  // антенна-игла на вершине
+  for (let ly = 22; ly < 30; ly++) pushVox(mx, mz, ly, gTop, metal(), zi);
+}
+
 function buildCNPP(z, zi) {
   const gTop = topAtWorld(z.wx, z.wz);
   const silver = new THREE.Color(0xb9c1c7), hallC = new THREE.Color(0x86887f), cyan = new THREE.Color(FACTIONS.monolith.color);
@@ -1774,7 +1993,7 @@ function buildCNPP(z, zi) {
 // сопоставление зона → архетип
 const ARCH = {
   'ZATON': archShip, 'KURCHATOV-37': archMilitary, 'JUPITER': archFactory,
-  'PRIPYAT': archFerris, 'GENERATORS': archRuins, 'RED FOREST': archDeadTrees,
+  'PRIPYAT': archFerris, 'GENERATORS': archGenerators, 'RED FOREST': archDeadTrees,
   'LABYRINTH': archRuins, 'LIMANSK-13': archRuins, 'RADAR': archDuga,
   'DEAD CITY': archRuins, 'DEADLANDS': archRuins, 'CROSSROADS': archVillage,
   'ARMY WAREHOUSES': archWarehouses, 'MARSH': archVillage, 'YANTAR': archBunker,
@@ -2167,9 +2386,17 @@ function skyColor(t) {
   return SKY[0].c.clone();
 }
 
-let timeOfDay = 0.36;               // старт — утро
-const DAY_LEN = 210;                // секунд на полный цикл
+let timeOfDay = 0.36;
+const DAY_LEN = 432;  // 1 мин = 0.3 сек → 24ч × 60 × 0.3 = 432 сек
 const skyC = new THREE.Color();
+
+// ---- счётчик дней и таймер выброса ----
+let dayCount = 1;
+let lastDayTod = 0;
+function nextStormDay() { return 7 + Math.floor(Math.random() * 9); }  // 7..15
+let stormInDays = nextStormDay();
+const dayEl = document.getElementById('dayCount');
+if (dayEl) dayEl.textContent = dayCount;
 
 /* ============================================================
    HUD: список группировок, банер, часы
@@ -2365,16 +2592,48 @@ function frame() {
     b.discMat.opacity = d;
   }
 
-  // ---- время суток ----
+  // ---- день/ночь + счётчик дней ----
+  const prevTod = timeOfDay;
   timeOfDay = (timeOfDay + dt / DAY_LEN) % 1;
+  // пересечение полуночи = новый день
+  if (prevTod > 0.95 && timeOfDay < 0.05) {
+    dayCount++;
+    stormInDays--;
+    if (dayEl) dayEl.textContent = dayCount;
+    if (stormInDays <= 0) {
+      // выброс!
+      stormInDays = nextStormDay();
+      wxName = 'storm';
+      wxTarget = { ...WX.storm, tintC: new THREE.Color(WX.storm.tint) };
+      wxTimer = 0;
+      document.getElementById('wx').textContent = WX.storm.label;
+      triggerEmission();
+    }
+  }
   const sunAngle = (timeOfDay - 0.25) * Math.PI * 2;
   const sunH = Math.sin(sunAngle);
   sun.position.set(Math.cos(sunAngle) * 200, Math.max(-40, sunH * 220), 80);
   const daylight = THREE.MathUtils.clamp(sunH * 1.2 + 0.35, 0.05, 1);
 
-  // ---- погода: плавный переход к цели ----
+  // ---- погода: выброс держится 5 игровых часов (90 сек), обычная — 2 часа (36 сек) ----
   wxTimer += dt;
-  if (wxTimer > 30) pickWeather(true);
+  const wxHoldTime = wxName === 'storm' ? 18 : 36;
+  if (wxTimer > wxHoldTime) {
+    if (wxName === 'storm') {
+      // выброс закончился — переходим в пасмурно
+      wxName = 'overcast';
+      wxTarget = { ...WX.overcast, tintC: new THREE.Color(WX.overcast.tint) };
+    } else {
+      const safeKeys = WX_KEYS.filter(k => k !== 'storm' && k !== wxName);
+      const weights = { clear: 3, overcast: 3, rain: 2, fog: 2 };
+      let pool = [];
+      safeKeys.forEach(k => { for (let i = 0; i < (weights[k]||1); i++) pool.push(k); });
+      wxName = pool[Math.floor(Math.random() * pool.length)];
+      wxTarget = { ...WX[wxName], tintC: new THREE.Color(WX[wxName].tint) };
+    }
+    wxTimer = 0;
+    document.getElementById('wx').textContent = WX[wxName].label;
+  }
   const k = 1 - Math.pow(0.5, dt / 1.6);
   wxCur.fog += (wxTarget.fog - wxCur.fog) * k;
   wxCur.rain += (wxTarget.rain - wxCur.rain) * k;
@@ -2449,6 +2708,64 @@ function frame() {
   const radVal = (radBase + wxCur.rain * 1.5 + Math.random() * 0.3).toFixed(2);
   radEl.textContent = radVal + ' μSv';
   radEl.className = 'v' + (radBase > 3 ? ' hot' : wxCur.rain > 0.4 ? ' warn' : '');
+
+  // ---- молнии над генераторами при выбросе ----
+  if (scene.userData.genStorm) {
+    const gs = scene.userData.genStorm;
+    const active = stormPhase > 0 || wxName === 'storm';
+    const fadeK = 1 - Math.pow(0.5, dt / (active ? 0.5 : 2.0));
+
+    gs.stormCloudMat.opacity += ((active ? 0.45 : 0) - gs.stormCloudMat.opacity) * fadeK;
+    gs.stormCoreMat.opacity  += ((active ? 0.65 : 0) - gs.stormCoreMat.opacity)  * fadeK;
+    gs.stormLight.intensity  += ((active ? 8    : 0) - gs.stormLight.intensity)   * fadeK;
+
+    // молнии мерцают хаотично
+    const mt2 = performance.now() * 0.001;
+    for (const ln of gs.lightnings) {
+      const flick  = active && (Math.sin(mt2 * 7.3  + ln.baseX) > 0.2);
+      const flick2 = active && (Math.sin(mt2 * 13.1 + ln.baseZ) > 0.5);
+      ln.mat.opacity = flick ? (0.6 + 0.4 * Math.random()) : (flick2 ? 0.3 : 0);
+      if (active && Math.random() < dt * 8) {
+        const pts = [];
+        for (let s = 0; s <= 8; s++) {
+          const t2 = s / 8;
+          const jx = s > 0 && s < 8 ? (Math.random()-0.5)*8 : 0;
+          const jz = s > 0 && s < 8 ? (Math.random()-0.5)*8 : 0;
+          const cloudY = gs.genY + 42;
+          pts.push(new THREE.Vector3(
+            gs.genX + (ln.baseX - gs.genX) * t2 + jx,
+            cloudY + (ln.gTop - cloudY) * t2,
+            gs.genZ + (ln.baseZ - gs.genZ) * t2 + jz
+          ));
+        }
+        ln.bolt.geometry.setFromPoints(pts);
+      }
+      const col = stormPhase === 2 ? 0xffffff : (stormPhase === 1 ? 0xcc88ff : 0x88ccff);
+      ln.mat.color.setHex(col);
+    }
+
+    // ---- волны расходятся от генераторов по всей Зоне ----
+    const WAVE_PERIOD = 6;    // секунд между волнами
+    const WAVE_MAX_R  = Math.max(HALF_X, HALF_Z) * 1.6; // до края карты с запасом
+    for (const w of gs.waves) {
+      if (active) {
+        w.t = (w.t + dt / WAVE_PERIOD) % 1;
+        const r = w.t * WAVE_MAX_R;
+        // прозрачность: яркая у генераторов, гаснет к краю + нарастает из 0
+        const near = 1 - w.t;         // 1 → 0 по мере расширения
+        const rise = Math.min(w.t * 8, 1);  // быстро нарастает из нуля
+        w.mat.opacity = rise * near * near * 0.55;
+        // цвет — фиолетовый→голубой по мере удаления
+        w.mat.color.setHSL(0.72 - w.t * 0.15, 0.9, 0.6);
+        w.mesh.scale.setScalar(r);
+        w.mesh.visible = true;
+      } else {
+        // гасим волны
+        w.mat.opacity = Math.max(0, w.mat.opacity - dt * 0.4);
+        if (w.mat.opacity <= 0) w.mesh.visible = false;
+      }
+    }
+  }
 
   // ---- пульсация Монолита ----
   if (scene.userData.monoLights) {

@@ -451,7 +451,7 @@ function topAtWorld(wx, wz) {
 /* ============================================================
    ЗДАНИЯ-LEGO (instanced, растут снизу вверх при зуме)
    ============================================================ */
-const voxGeo = new THREE.BoxGeometry(0.92, 1, 0.92);
+const voxGeo = new THREE.BoxGeometry(0.96, 1, 0.96);
 const voxMat = new THREE.MeshLambertMaterial();
 const buildingVox = [];   // {x,z,layer,ground,color, sx,sz}
 
@@ -496,17 +496,17 @@ for (let zi = 0; zi < ZONES.length; zi++) {
   if (z.en === 'C.N.P.P') { buildCNPP(z, zi); continue; }
   const rnd = mulberry32(1000 + zi * 97);
   const facCol = z.fac === 'neutral' ? new THREE.Color(0x8a8c82) : new THREE.Color(FACTIONS[z.fac].color);
-  const settleSize = z.base ? 5 : (z.fac === 'neutral' ? 2 : 3);
-  const towers = z.base ? 6 + Math.floor(rnd() * 5) : 2 + Math.floor(rnd() * 3);
+  const settleSize = z.base ? 6 : (z.fac === 'neutral' ? 3 : 4);
+  const towers = z.base ? 9 + Math.floor(rnd() * 6) : 4 + Math.floor(rnd() * 3);
 
   for (let t = 0; t < towers; t++) {
     const ox = Math.round((rnd() - 0.5) * settleSize * 2);
     const oz = Math.round((rnd() - 0.5) * settleSize * 2);
     const wx = z.wx + ox, wz = z.wz + oz;
     const gTop = topAtWorld(wx, wz);
-    const footW = 1 + Math.floor(rnd() * 2);
-    const footD = 1 + Math.floor(rnd() * 2);
-    const height = (z.base ? 3 : 2) + Math.floor(rnd() * (z.base ? 6 : 3));
+    const footW = 2 + Math.floor(rnd() * 2);
+    const footD = 2 + Math.floor(rnd() * 2);
+    const height = (z.base ? 5 : 3) + Math.floor(rnd() * (z.base ? 9 : 5));
     const tint = new THREE.Color(concrete[Math.floor(rnd() * concrete.length)]);
     tint.lerp(facCol, 0.16 + rnd() * 0.12);
 
@@ -584,11 +584,11 @@ scene.add(rain);
 
 // состояния погоды
 const WX = {
-  clear:    { label: 'ЯСНО',    fog: 0.0045, rain: 0,   dark: 0.0, tint: 0x2a3327 },
-  overcast: { label: 'ПАСМУРНО',fog: 0.010,  rain: 0,   dark: 0.35, tint: 0x2b3130 },
-  rain:     { label: 'ДОЖДЬ',   fog: 0.016,  rain: 1,   dark: 0.55, tint: 0x232a2b },
-  fog:      { label: 'ТУМАН',   fog: 0.030,  rain: 0,   dark: 0.4,  tint: 0x39423a },
-  storm:    { label: 'ВЫБРОС',  fog: 0.024,  rain: 0.6, dark: 0.7,  tint: 0x3a2320 },
+  clear:    { label: 'ЯСНО',    fog: 0.0030, rain: 0,   dark: 0.0, tint: 0x2a3327 },
+  overcast: { label: 'ПАСМУРНО',fog: 0.0060, rain: 0,   dark: 0.35, tint: 0x2b3130 },
+  rain:     { label: 'ДОЖДЬ',   fog: 0.0110, rain: 1,   dark: 0.55, tint: 0x232a2b },
+  fog:      { label: 'ТУМАН',   fog: 0.0170, rain: 0,   dark: 0.4,  tint: 0x39423a },
+  storm:    { label: 'ВЫБРОС',  fog: 0.0130, rain: 0.6, dark: 0.7,  tint: 0x3a2320 },
 };
 const WX_KEYS = Object.keys(WX);
 let wxCur = { ...WX.clear, tintC: new THREE.Color(WX.clear.tint) };
@@ -758,7 +758,7 @@ function frame() {
   skyC.copy(skyColor(timeOfDay)).lerp(wxCur.tintC, 0.35 * wxCur.dark + 0.15);
   scene.background = skyC;
   scene.fog.color.copy(skyC).multiplyScalar(0.9);
-  scene.fog.density = wxCur.fog;
+  scene.fog.density = wxCur.fog * (0.06 + 0.94 * zoom01 * zoom01);
 
   const light = daylight * (1 - wxCur.dark * 0.6);
   sun.intensity = 0.4 + light * 1.7;

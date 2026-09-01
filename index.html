@@ -256,39 +256,39 @@ const FACTIONS = {
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
-  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.10,  fac:'loners',  base:true  },
-  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.065, fac:'military', base:false },
-  { en:'JUPITER',       ru:'Юпитер',         nx:0.07, nz:0.155, fac:'mercs',    base:false },
-  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.150, fac:'monolith', base:false },
-  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.170, fac:'monolith', base:false },
-  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.262, fac:'monolith', base:true  },
-  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.292, fac:'monolith', base:false, anomaly:true },
-  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.312, fac:'neutral',  base:false },
-  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.320, fac:'monolith', base:false },
-  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.372, fac:'monolith', base:true,  anomaly:true },
-  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.400, fac:'mercs',    base:true  },
-  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.440, fac:'neutral',  base:false },
-  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.548, fac:'neutral',  base:false },
-  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.548, fac:'freedom',  base:true  },
-  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.580, fac:'csky',     base:true  },
-  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.632, fac:'eco',      base:true,  anomaly:true },
-  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.620, fac:'duty',     base:true  },
-  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.652, fac:'neutral',  base:false },
-  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.680, fac:'bandits',  base:false },
-  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.752, fac:'bandits',  base:true  },
-  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.792, fac:'military', base:true  },
-  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.782, fac:'loners',   base:false },
-  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.820, fac:'neutral',  base:false },
-  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.900, fac:'loners',   base:true  },
-  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.920, fac:'csky',     base:false },
-  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.920, fac:'neutral',  base:false },
+  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.10,  fac:'loners',  base:true,  biome:'swamp' },
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.065, fac:'military', base:false, biome:'city' },
+  { en:'JUPITER',       ru:'Юпитер',         nx:0.07, nz:0.155, fac:'mercs',    base:false, biome:'waste' },
+  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.150, fac:'monolith', base:false, biome:'city' },
+  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.170, fac:'monolith', base:false, biome:'city' },
+  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.262, fac:'monolith', base:true,  biome:'waste' },
+  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.292, fac:'monolith', base:false, anomaly:true, biome:'deadforest' },
+  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.312, fac:'neutral',  base:false, biome:'rocky' },
+  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.320, fac:'monolith', base:false, biome:'city' },
+  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.372, fac:'monolith', base:true,  anomaly:true, biome:'swamp' },
+  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.400, fac:'mercs',    base:true,  biome:'city' },
+  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.440, fac:'neutral',  base:false, biome:'waste' },
+  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.548, fac:'neutral',  base:false, biome:'forest' },
+  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.548, fac:'freedom',  base:true,  biome:'forest' },
+  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.580, fac:'csky',     base:true,  biome:'swamp' },
+  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.632, fac:'eco',      base:true,  anomaly:true, biome:'swamp' },
+  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.620, fac:'duty',     base:true,  biome:'city' },
+  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.652, fac:'neutral',  base:false, biome:'waste' },
+  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.680, fac:'bandits',  base:false, biome:'waste' },
+  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.752, fac:'bandits',  base:true,  biome:'rocky' },
+  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.792, fac:'military', base:true,  biome:'waste' },
+  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.782, fac:'loners',   base:false, biome:'waste' },
+  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.820, fac:'neutral',  base:false, biome:'forest' },
+  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.900, fac:'loners',   base:true,  biome:'forest' },
+  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.920, fac:'csky',     base:false, biome:'swamp' },
+  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.920, fac:'neutral',  base:false, biome:'rocky' },
 ];
 
 // перевод нормированных координат в мир
 function zoneWorld(z) {
   return { x: (z.nx - 0.5) * GX * TILE, z: (z.nz - 0.5) * GZ * TILE };
 }
-ZONES.forEach(z => { const w = zoneWorld(z); z.wx = w.x; z.wz = w.z; });
+ZONES.forEach((z, i) => { const w = zoneWorld(z); z.wx = w.x; z.wz = w.z; z.idx = i; });
 
 /* ---- детерминированный шум ---- */
 function hash2(x, y) {
@@ -398,6 +398,15 @@ const C = {
   city:    new THREE.Color(0x5a5c55), cityB:   new THREE.Color(0x44463f),
   anomaly: new THREE.Color(0x7a2f2a),
 };
+// палитра «характера» региона — приближает цвет местности к оригинальным локациям STALKER
+const BIOME_COL = {
+  forest:     new THREE.Color(0x354a2c),
+  swamp:      new THREE.Color(0x33402f),
+  city:       new THREE.Color(0x565850),
+  waste:      new THREE.Color(0x6a5c3c),
+  rocky:      new THREE.Color(0x6e6656),
+  deadforest: new THREE.Color(0x6a3f2a),
+};
 
 const groundGeo = new THREE.BoxGeometry(TILE, 1, TILE);
 const groundMat = new THREE.MeshLambertMaterial({ vertexColors: false });
@@ -421,6 +430,144 @@ function nearestZone(wx, wz) {
   return { z: best, dist: Math.sqrt(bd) };
 }
 
+/* ============================================================
+   КЛЮЧЕВЫЕ ТОЧКИ — генерируются ДО террейна, чтобы рельеф и
+   цвет тайлов знали про них (пиксельные пятна вокруг точек).
+   Затон — эталонный, снятый вручную; остальные регионы — процедурно.
+   ============================================================ */
+const ANOM = {
+  thermal: { name: 'Жарка',       color: 0xe8873a },
+  electro: { name: 'Электра',     color: 0x4fd0e0 },
+  chem:    { name: 'Химия',       color: 0x6fd04a },
+  grav:    { name: 'Гравитация',  color: 0xa06fe0 },
+};
+const KP_TYPE = { base: 'база', settlement: 'поселение', chokepoint: 'узел', anomaly: 'аномальное поле' };
+const ANOM_KEYS = Object.keys(ANOM);
+
+const NAME_POOL = {
+  base: ['Форпост','Застава','Бункер','Опорный пункт','Пост охраны','Редут'],
+  settlement: ['Хутор','Пасека','Депо','Мастерская','Схрон','Общежитие','Ферма','Склад','ВНЗ «Круг»','Заимка','Кордон'],
+  chokepoint: ['Мост','Переезд','Развилка','Перевал','Тоннель','Насыпь'],
+  anomaly: {
+    thermal: ['Жаровня','Пекло','Котёл','Костёр'],
+    electro: ['Игла','Разряд','Молния','Рубец'],
+    chem:    ['Трясина','Гниль','Смола','Цирк'],
+    grav:    ['Воронка','Карусель','Спираль','Коготь'],
+  },
+};
+function pickName(rnd, arr, used) {
+  for (let tries = 0; tries < 8; tries++) {
+    const n = arr[Math.floor(rnd() * arr.length)];
+    if (!used.has(n)) { used.add(n); return n; }
+  }
+  return arr[Math.floor(rnd() * arr.length)];
+}
+
+// вручную снятые с карты точки Затона (эталонный регион, как на референсе)
+const ZATON_KP = [
+  { ru: 'Скадовск',            dx:  3.6, dz: -5.6, type: 'base',       owner: 'loners'  },
+  { ru: 'Лесопилка',           dx: -7.8, dz: -9.2, type: 'settlement', owner: 'neutral' },
+  { ru: 'Топь',                dx:-10.1, dz: -5.0, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
+  { ru: 'ВНЗ «Круг»',          dx: -9.5, dz: -1.4, type: 'settlement', owner: 'neutral' },
+  { ru: 'Изумрудное',          dx: -3.9, dz: -3.4, type: 'settlement', owner: 'neutral' },
+  { ru: 'Сгоревший хутор',     dx: -1.7, dz: -8.4, type: 'settlement', owner: 'bandits' },
+  { ru: 'Заправка',            dx: -4.5, dz:  3.4, type: 'settlement', owner: 'bandits' },
+  { ru: 'Лесничество',         dx:  9.0, dz: -0.8, type: 'settlement', owner: 'neutral' },
+  { ru: 'Станция переработки', dx:  7.0, dz:  8.4, type: 'base',       owner: 'neutral' },
+  { ru: 'Баржа «Ной»',         dx:  2.8, dz:  2.8, type: 'settlement', owner: 'neutral' },
+  { ru: 'Мост Преображенского',dx: 10.6, dz:  3.6, type: 'chokepoint', owner: 'neutral' },
+  { ru: 'Аномалия «Котёл»',    dx:  7.8, dz:-10.4, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Соснодуб',            dx: -7.8, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Железный лес',        dx: -8.7, dz:  7.8, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Аномалия «Рубец»',    dx:  6.2, dz:  5.0, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Аномалия «Цирк»',     dx:  0.0, dz:  8.4, type: 'anomaly',    owner: 'neutral', kind: 'chem' },
+  { ru: 'Аномалия «Коготь»',   dx: -2.2, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'grav' },
+];
+
+// процедурная генерация точек для остальных регионов (детерминированно, per-zone seed)
+function genKeypoints(z, zi) {
+  const rnd = mulberry32(5000 + zi * 131);
+  const used = new Set();
+  const pts = [];
+  const R = 9 + rnd() * 3;
+  const place = () => {
+    for (let tries = 0; tries < 12; tries++) {
+      const ang = rnd() * Math.PI * 2, rr = 2 + rnd() * R;
+      const dx = Math.cos(ang) * rr, dz = Math.sin(ang) * rr * 0.75;
+      let ok = true;
+      for (const p of pts) if (Math.hypot(p.dx - dx, p.dz - dz) < 3.2) { ok = false; break; }
+      if (ok) return { dx, dz };
+    }
+    return { dx: (rnd() - 0.5) * R * 2, dz: (rnd() - 0.5) * R * 1.4 };
+  };
+
+  if (z.base) {
+    const p = place();
+    pts.push({ ru: pickName(rnd, NAME_POOL.base, used), dx: p.dx, dz: p.dz, type: 'base', owner: z.fac });
+  }
+  const anomCount = z.anomaly ? 2 + Math.floor(rnd() * 2) : (rnd() < 0.5 ? 1 : 0);
+  for (let i = 0; i < anomCount; i++) {
+    const kind = ANOM_KEYS[Math.floor(rnd() * ANOM_KEYS.length)];
+    const p = place();
+    pts.push({ ru: pickName(rnd, NAME_POOL.anomaly[kind], used), dx: p.dx, dz: p.dz, type: 'anomaly', owner: 'neutral', kind });
+  }
+  const settleCount = 2 + Math.floor(rnd() * 3);
+  for (let i = 0; i < settleCount; i++) {
+    const p = place();
+    const owner = (z.fac !== 'neutral' && rnd() < 0.25) ? z.fac : 'neutral';
+    pts.push({ ru: pickName(rnd, NAME_POOL.settlement, used), dx: p.dx, dz: p.dz, type: 'settlement', owner });
+  }
+  if (rnd() < 0.6) {
+    const p = place();
+    pts.push({ ru: pickName(rnd, NAME_POOL.chokepoint, used), dx: p.dx, dz: p.dz, type: 'chokepoint', owner: 'neutral' });
+  }
+  return pts;
+}
+
+const KEYPOINTS = [];
+const kpByZone = [];
+for (let zi = 0; zi < ZONES.length; zi++) {
+  const z = ZONES[zi];
+  // ВРЕМЕННО: точки есть только у Затона (эталон). Остальные регионы
+  // трогать не будем, пока не появятся реальные карты с локации STALKER —
+  // генерировать точки случайными именами по региону нельзя.
+  const raw = z.en === 'ZATON' ? ZATON_KP : [];
+  const list = raw.map(k => ({ ...k, r: z.en, zi, wx: z.wx + k.dx, wz: z.wz + k.dz }));
+  kpByZone[zi] = list;
+  KEYPOINTS.push(...list);
+}
+function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner].color; }
+
+/* ---- локальная река/болота Затона — снято с карты КПК, чтобы корабль
+   стоял на суше, а не посреди воды, как раньше ---- */
+const ZATON_IDX = ZONES.findIndex(z => z.en === 'ZATON');
+const zatonZ = ZONES[ZATON_IDX];
+// путь реки: широкой дугой по северной и восточной кромке региона
+const ZATON_RIVER = [
+  [-16, -15], [-9, -14.2], [-2, -13.6], [5, -13.2], [10.5, -12],
+  [13.5, -8.5], [14, -3], [13, 2], [11.5, 4], [10, 6.5], [8, 9],
+].map(([dx, dz]) => ({ x: zatonZ.wx + dx, z: zatonZ.wz + dz }));
+const ZATON_MARSH = { x: zatonZ.wx - 10.1, z: zatonZ.wz - 5.0, r: 5.2 };   // Топь
+const ZATON_PUDDLE = { x: zatonZ.wx - 9.5, z: zatonZ.wz - 1.4, r: 2.1 };  // лужа у ВНЗ «Круг»
+function distToPolyline(pts, x, z) {
+  let best = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const abx = b.x - a.x, abz = b.z - a.z;
+    const len2 = abx * abx + abz * abz || 1;
+    const t = THREE.MathUtils.clamp(((x - a.x) * abx + (z - a.z) * abz) / len2, 0, 1);
+    const d = Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t));
+    if (d < best) best = d;
+  }
+  return best;
+}
+function zatonWater(wx, wz) {
+  if (distToPolyline(ZATON_RIVER, wx, wz) < 3.0) return true;
+  if (Math.hypot(wx - ZATON_MARSH.x, wz - ZATON_MARSH.z) < ZATON_MARSH.r) return true;
+  if (Math.hypot(wx - ZATON_PUDDLE.x, wz - ZATON_PUDDLE.z) < ZATON_PUDDLE.r) return true;
+  return false;
+}
+
 let idx = 0;
 for (let gz = 0; gz < GZ; gz++) {
   for (let gx = 0; gx < GX; gx++) {
@@ -429,10 +576,13 @@ for (let gz = 0; gz < GZ; gz++) {
 
     const e = fbm(gx * 0.045 + 10, gz * 0.045 + 10, 5);       // рельеф
     const m = fbm(gx * 0.03 - 5, gz * 0.03 - 5, 3);           // влажность
-    const isWater = waterLevelAt(gx, gz);
-
     const near = nearestZone(wx, wz);
+    const isWater = (near.z.idx === ZATON_IDX && near.dist < 19)
+      ? zatonWater(wx, wz)
+      : waterLevelAt(gx, gz);
+
     const cityInfluence = Math.max(0, 1 - near.dist / 9);     // близко к поселению
+    const biomeInfl = Math.max(0, 1 - near.dist / 15);        // «характер» региона (шире, чем поселение)
 
     let h, base, edge, t;
     if (isWater) {
@@ -446,16 +596,40 @@ for (let gz = 0; gz < GZ; gz++) {
     } else {
       h = BASE_H + e * HEIGHT_SCALE; base = C.forestA; edge = C.forestB; t = e;
     }
+    if (!isWater) {
+      if (near.z.biome === 'rocky') h *= 1 + biomeInfl * 0.55;
+      else if (near.z.biome === 'swamp') h *= 1 - biomeInfl * 0.4;
+      else if (near.z.biome === 'city') h *= 1 + biomeInfl * 0.15;
+    }
 
     col.copy(edge).lerp(base, smooth(t));
     // лёгкая пёстрость
     col.offsetHSL(0, 0, (hash2(gx, gz) - 0.5) * 0.05);
 
-    // аномальный красный ореол
+    // аномальный красный ореол (уровень региона)
     for (const z of ZONES) {
       if (!z.anomaly) continue;
       const d = Math.hypot(z.wx - wx, z.wz - wz);
       if (d < 13) col.lerp(C.anomaly, (1 - d / 13) * 0.55);
+    }
+
+    // пиксельные пятна вокруг ключевых точек своего региона
+    const zoneKps = kpByZone[near.z.idx];
+    if (zoneKps) {
+      for (const k of zoneKps) {
+        const d = Math.hypot(k.wx - wx, k.wz - wz);
+        if (k.type === 'anomaly') {
+          if (d < 5.5) col.lerp(new THREE.Color(ANOM[k.kind].color), (1 - d / 5.5) * 0.5);
+        } else if (d < 4) {
+          col.lerp(new THREE.Color(0x8a7a58), (1 - d / 4) * 0.32);
+        }
+      }
+    }
+
+    // характер региона — приближает цвет местности к оригинальным локациям STALKER
+    if (!isWater) {
+      const bc = BIOME_COL[near.z.biome];
+      if (bc) col.lerp(bc, biomeInfl * 0.5);
     }
 
     topAt[idx] = h;
@@ -476,6 +650,7 @@ function topAtWorld(wx, wz) {
   if (gx < 0 || gx >= GX || gz < 0 || gz >= GZ) return BASE_H;
   return topAt[gz * GX + gx];
 }
+KEYPOINTS.forEach(k => { k.gTop = topAtWorld(k.wx, k.wz); });
 
 /* ============================================================
    ЗДАНИЯ-LEGO (instanced, растут снизу вверх при зуме)
@@ -484,8 +659,9 @@ const voxGeo = new THREE.BoxGeometry(0.96, 1, 0.96);
 const voxMat = new THREE.MeshLambertMaterial();
 const buildingVox = [];   // {x,z,layer,ground,color, sx,sz}
 
+let curPivotX = 0, curPivotZ = 0;   // «якорь» текущей постройки — вокруг него она сжимается при зуме
 function pushVox(wx, wz, layer, gTop, color, zi) {
-  buildingVox.push({ x: wx, z: wz, layer, ground: gTop, color, zone: zi });
+  buildingVox.push({ x: wx, z: wz, layer, ground: gTop, color, zone: zi, pcx: curPivotX, pcz: curPivotZ });
 }
 function tint(hex, rnd) {
   return new THREE.Color(hex).offsetHSL(0, 0, (rnd() - 0.5) * 0.06);
@@ -737,11 +913,43 @@ const ARCH = {
 
 for (let zi = 0; zi < ZONES.length; zi++) {
   const z = ZONES[zi];
-  if (z.en === 'C.N.P.P') { buildCNPP(z, zi); continue; }
+  if (z.en === 'C.N.P.P') { curPivotX = z.wx; curPivotZ = z.wz; buildCNPP(z, zi); continue; }
   const rnd = mulberry32(1000 + zi * 97);
   const faccol = z.fac === 'neutral' ? new THREE.Color(0x8a8c82) : new THREE.Color(FACTIONS[z.fac].color);
   const gTop = topAtWorld(z.wx, z.wz);
+  curPivotX = z.wx; curPivotZ = z.wz;
   (ARCH[z.en] || archRuins)(z, zi, gTop, rnd, faccol);
+}
+
+/* ---- дополнительные постройки на реальных точках Затона (карта КПК) ---- */
+const ZATON_BUILD = {
+  'Лесопилка':           (k, rnd) => archFactory(k, ZATON_IDX, k.gTop, rnd, new THREE.Color(0x6b5236)),
+  'ВНЗ «Круг»':          (k, rnd) => archVillage(k, ZATON_IDX, k.gTop, rnd),
+  'Изумрудное':          (k, rnd) => archVillage(k, ZATON_IDX, k.gTop, rnd),
+  'Сгоревший хутор':     (k, rnd) => archRuins(k, ZATON_IDX, k.gTop, rnd, null, 2),
+  'Заправка':            (k, rnd) => archVillage(k, ZATON_IDX, k.gTop, rnd),
+  'Лесничество':         (k, rnd) => archVillage(k, ZATON_IDX, k.gTop, rnd),
+  'Станция переработки': (k, rnd) => archWarehouses(k, ZATON_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.eco.color)),
+  'Баржа «Ной»':         (k, rnd) => archRuins(k, ZATON_IDX, k.gTop, rnd, null, 2),
+};
+for (const k of KEYPOINTS) {
+  if (k.zi !== ZATON_IDX) continue;
+  const build = ZATON_BUILD[k.ru];
+  if (!build) continue;
+  const rnd = mulberry32(9000 + Math.round(k.dx * 37) + Math.round(k.dz * 53));
+  curPivotX = k.wx; curPivotZ = k.wz;
+  build(k, rnd);
+}
+// мост Преображенского — дощатый настил через реку
+{
+  const bridge = KEYPOINTS.find(p => p.zi === ZATON_IDX && p.ru === 'Мост Преображенского');
+  if (bridge) {
+    curPivotX = bridge.wx; curPivotZ = bridge.wz;
+    for (let i = -6; i <= 6; i++) {
+      pushVox(bridge.wx + i * 0.9, bridge.wz, 0, bridge.gTop, new THREE.Color(0x6b5236), ZATON_IDX);
+      pushVox(bridge.wx + i * 0.9, bridge.wz, 1, bridge.gTop, new THREE.Color(0x7a6244), ZATON_IDX);
+    }
+  }
 }
 
 const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
@@ -781,44 +989,9 @@ for (const z of ZONES) {
 }
 
 /* ============================================================
-   КЛЮЧЕВЫЕ ТОЧКИ — захватываемые юнитами; аномалии = ресурс
-   Универсальная система: на регион просто добавляются данные.
+   КЛЮЧЕВЫЕ ТОЧКИ — визуализация (данные уже сгенерированы выше,
+   до террейна, чтобы рельеф и цвет тайлов знали про них).
    ============================================================ */
-const ANOM = {
-  thermal: { name: 'Жарка',       color: 0xe8873a },
-  electro: { name: 'Электра',     color: 0x4fd0e0 },
-  chem:    { name: 'Химия',       color: 0x6fd04a },
-  grav:    { name: 'Гравитация',  color: 0xa06fe0 },
-};
-const KP_TYPE = { base: 'база', settlement: 'поселение', chokepoint: 'узел', anomaly: 'аномальное поле' };
-
-const zaton = ZONES.find(z => z.en === 'ZATON');
-// смещения (dx,dz) в юнитах относительно центра Затона (сняты со спутниковой карты)
-const KEYPOINTS = [
-  { r: 'ZATON', ru: 'Скадовск',            dx:  3.6, dz: -5.6, type: 'base',       owner: 'loners'  },
-  { r: 'ZATON', ru: 'Лесопилка',           dx: -7.8, dz: -9.2, type: 'settlement', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Топь',                dx:-10.1, dz: -5.0, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
-  { r: 'ZATON', ru: 'ВНЗ «Круг»',          dx: -9.5, dz: -1.4, type: 'settlement', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Изумрудное',          dx: -3.9, dz: -3.4, type: 'settlement', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Сгоревший хутор',     dx: -1.7, dz: -8.4, type: 'settlement', owner: 'bandits' },
-  { r: 'ZATON', ru: 'Заправка',            dx: -4.5, dz:  3.4, type: 'settlement', owner: 'bandits' },
-  { r: 'ZATON', ru: 'Лесничество',         dx:  9.0, dz: -0.8, type: 'settlement', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Станция переработки', dx:  7.0, dz:  8.4, type: 'base',       owner: 'neutral' },
-  { r: 'ZATON', ru: 'Баржа «Ной»',         dx:  2.8, dz:  2.8, type: 'settlement', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Мост Преображенского',dx: 10.6, dz:  3.6, type: 'chokepoint', owner: 'neutral' },
-  { r: 'ZATON', ru: 'Аномалия «Котёл»',    dx:  7.8, dz:-10.4, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
-  { r: 'ZATON', ru: 'Соснодуб',            dx: -7.8, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
-  { r: 'ZATON', ru: 'Железный лес',        dx: -8.7, dz:  7.8, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
-  { r: 'ZATON', ru: 'Аномалия «Рубец»',    dx:  6.2, dz:  5.0, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
-  { r: 'ZATON', ru: 'Аномалия «Цирк»',     dx:  0.0, dz:  8.4, type: 'anomaly',    owner: 'neutral', kind: 'chem' },
-  { r: 'ZATON', ru: 'Аномалия «Коготь»',   dx: -2.2, dz:  2.8, type: 'anomaly',    owner: 'neutral', kind: 'grav' },
-].map(k => {
-  k.wx = zaton.wx + k.dx; k.wz = zaton.wz + k.dz; k.gTop = topAtWorld(k.wx, k.wz);
-  return k;
-});
-
-function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner].color; }
-
 const kpPick = [];
 const ringGeo = new THREE.RingGeometry(1.2, 1.8, 24);
 const pickGeo = new THREE.SphereGeometry(2.4, 8, 6);
@@ -1071,6 +1244,7 @@ let zoom01 = 0;
 const clock = new THREE.Clock();
 
 const zoneReveal = new Float32Array(ZONES.length);   // 0..1 на зону
+const zoneShrink = new Float32Array(ZONES.length);    // 0..1 — насколько сжат ландмарк при приближении
 
 function updateBuildings() {
   for (let i = 0; i < buildingVox.length; i++) {
@@ -1080,8 +1254,15 @@ function updateBuildings() {
     if (s <= 0.001) {
       dummy.position.set(0, -9999, 0); dummy.scale.set(0.0001, 0.0001, 0.0001);
     } else {
-      dummy.position.set(v.x, v.ground + v.layer + s / 2, v.z);
-      dummy.scale.set(1, s, 1);
+      // при близком приближении крупный ландмарк (кораблик, вышки и т.п.)
+      // плавно уменьшается вокруг СВОЕГО центра, а не центра региона —
+      // иначе разбросанные по региону постройки будут «улетать» к центру
+      const shrink = 1 - 0.6 * zoneShrink[v.zone];
+      const px = v.pcx + (v.x - v.pcx) * shrink;
+      const pz = v.pcz + (v.z - v.pcz) * shrink;
+      const sy = s * shrink;
+      dummy.position.set(px, v.ground + v.layer * shrink + sy / 2, pz);
+      dummy.scale.set(shrink, sy, shrink);
     }
     dummy.updateMatrix();
     buildings.setMatrixAt(i, dummy.matrix);
@@ -1110,6 +1291,10 @@ function frame() {
     const prox = smooth(THREE.MathUtils.clamp(1 - (d - 24) / 70, 0, 1));  // близко=1, далеко=0
     const target = zoomFactor * prox;
     zoneReveal[i] += (target - zoneReveal[i]) * (1 - Math.pow(0.5, dt / 0.18)); // плавно
+
+    // ландмарк сжимается только когда камера реально нацелена именно на этот регион
+    const shrinkTarget = smooth(THREE.MathUtils.clamp((zoom01 - 0.55) / 0.30, 0, 1)) * prox;
+    zoneShrink[i] += (shrinkTarget - zoneShrink[i]) * (1 - Math.pow(0.5, dt / 0.18));
   }
   updateBuildings();
 

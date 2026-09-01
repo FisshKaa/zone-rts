@@ -2940,7 +2940,72 @@ function captureKP(k, factionArg) {
   k.ringMat.color.setHex(c);
   if (k.top) k.top.material.color.setHex(c);
   updateResources();
+  checkBaseElimination();
   return true;
+}
+
+// ---- Проверка уничтожения группировки ----
+// Если все КР вокруг главной базы фракции заняты одним врагом — база переходит к нему,
+// фракция ликвидируется: её юниты гибнут, КР остаются у захватчика.
+function checkBaseElimination() {
+  const SURROUND_RADIUS = 60; // радиус «окружения» базы
+
+  for (const base of KEYPOINTS.filter(k => k.type === 'base' && k.owner !== 'neutral')) {
+    const faction = base.owner;
+
+    // KP вокруг базы (не считая саму базу)
+    const nearby = KEYPOINTS.filter(k =>
+      k !== base &&
+      dist2d(base.wx, base.wz, k.wx, k.wz) < SURROUND_RADIUS
+    );
+    if (nearby.length === 0) continue;
+
+    // Считаем сколько КР вокруг принадлежат одному врагу
+    const counts = {};
+    for (const k of nearby) {
+      if (k.owner === faction || k.owner === 'neutral') continue;
+      counts[k.owner] = (counts[k.owner] || 0) + 1;
+    }
+
+    // Ищем врага который держит ВСЕ ненейтральные соседние КР
+    for (const [enemy, cnt] of Object.entries(counts)) {
+      const nonNeutralNearby = nearby.filter(k => k.owner !== 'neutral');
+      if (nonNeutralNearby.length === 0) continue;
+      const allEnemy = nonNeutralNearby.every(k => k.owner === enemy);
+      if (!allEnemy || cnt < 3) continue; // минимум 3 КР чтобы считалось окружением
+
+      // Окружение! База переходит к врагу
+      const loserName  = FACTIONS[faction]?.name  || faction;
+      const winnerName = FACTIONS[enemy]?.name || enemy;
+      const winCol = '#' + (FACTIONS[enemy]?.color ?? 0xaaaaaa).toString(16).padStart(6,'0');
+
+      logEvent(`💀 ${loserName} окружены и уничтожены! Базу занял ${winnerName}`, winCol);
+
+      // Передаём базу победителю
+      base.owner = enemy;
+      base.ringMat.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
+      if (base.top) base.top.material.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
+
+      // Все остальные КР проигравшего → победителю
+      for (const k of KEYPOINTS) {
+        if (k.owner !== faction) continue;
+        k.owner = enemy;
+        k.ringMat.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
+        if (k.top) k.top.material.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
+      }
+
+      // Убиваем всех юнитов проигравшей фракции
+      for (const u of [...allUnits]) {
+        if (u.faction === faction) removeUnit(u);
+      }
+
+      // Очки ИИ проигравшего обнуляем
+      AI_POINTS[faction] = 0;
+
+      updateResources();
+      break;
+    }
+  }
 }
 
 // ---- UI панели юнитов ----

@@ -2862,10 +2862,23 @@ function tickMutants(dt2) {
 const AI_POINTS = {};
 Object.keys(FACTIONS).forEach(f => AI_POINTS[f] = 60);
 
+// Пассивный доход тикает каждый кадр — за базы и KP
+function tickPassiveIncome(dt2) {
+  for (const fac of Object.keys(FACTIONS)) {
+    let income = 0;
+    for (const k of KEYPOINTS) {
+      if (k.owner !== fac) continue;
+      if (k.type === 'base')       income += 2.0;   // база: 2/сек
+      else if (k.type === 'anomaly') income += 1.0; // аномалия: 1/сек
+      else                           income += 0.5; // поселение/узел: 0.5/сек
+    }
+    AI_POINTS[fac] += income * dt2;
+  }
+}
+
 function tickAI(dt2) {
   Object.keys(FACTIONS).forEach(fac => {
     if (fac === myFaction) return;
-    AI_POINTS[fac] += dt2 * 1.5;
 
     let spawnBase = null;
     let limanskSpawn = false;
@@ -2933,6 +2946,7 @@ function captureKP(k, factionArg) {
 // ---- UI панели юнитов ----
 // ---- главный тик игры ----
 function tickGame(dt2, now) {
+  tickPassiveIncome(dt2);
   // тикаем всех юнитов (ИИ)
   for (const u of [...allUnits]) tickUnit(u, dt2);
 

@@ -163,8 +163,6 @@
   #kpInfo span { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--dim); margin-top: 2px; }
   #kpInfo em { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px;
     color: var(--geiger); font-style: normal; letter-spacing: .08em; margin-top: 5px; }
-
-  @media (max-width: 640px) {
     #brand .panel { min-width: 0; }
     #brand h1 { font-size: 18px; letter-spacing: .22em; }
     #factions .panel { width: 200px; }
@@ -231,6 +229,14 @@
 </div>
 
 <div id="boot">
+  <div class="rad"></div>
+  <div>ЗАГРУЗКА ЗОНЫ</div>
+  <small id="bootMsg">инициализация вокселей…</small>
+</div>
+
+<div id="unitMarkers"></div>
+<div id="eventLog" class="hud"></div>
+
   <div class="rad"></div>
   <div>ЗАГРУЗКА ЗОНЫ</div>
   <small id="bootMsg">инициализация вокселей…</small>
@@ -910,6 +916,30 @@ for (let zi = 0; zi < ZONES.length; zi++) {
   kpByZone[zi] = list;
   KEYPOINTS.push(...list);
 }
+
+// ---- Начальные владельцы КР ----
+// Правило 1: все КР кроме главной базы группировки → neutral
+// Правило 2: Монолит сразу занимает Припять, Генераторы, ЧАЭС, Радар целиком
+const MONOLITH_ZONES = new Set(['PRIPYAT', 'GENERATORS', 'C.N.P.P', 'RADAR', 'RED FOREST', 'LABYRINTH', 'LIMANSK-13']);
+const MONOLITH_SPAWN_ZONES = new Set(['C.N.P.P', 'GENERATORS', 'RED FOREST', 'LABYRINTH', 'LIMANSK-13']); // спавн только здесь
+const MONOLITH_MAX_ZONES = MONOLITH_ZONES; // дальше не ходит
+
+for (const k of KEYPOINTS) {
+  const zone = ZONES[k.zi];
+  if (!zone) continue;
+
+  if (zone.en === 'C.N.P.P' || MONOLITH_ZONES.has(zone.en)) {
+    // Монолит занимает всё в своих зонах
+    k.owner = 'monolith';
+  } else if (k.type === 'base' && k.owner !== 'neutral') {
+    // Главная база группировки — остаётся за группировкой
+    // (owner уже задан в KP-массивах)
+  } else {
+    // Всё остальное — нейтрально
+    k.owner = 'neutral';
+  }
+}
+
 function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner]?.color ?? 0xbfc4b8; }
 
 // индексы фиксированных регионов (объявлены выше, перед ZATON_KP)
@@ -2283,15 +2313,6 @@ for (const k of KEYPOINTS) {
 }
 
 const ray = new THREE.Raycaster();
-function captureKP(k) {
-  if (!myFaction || k.owner === myFaction) return false;
-  k.owner = myFaction;
-  const c = kpColor(k);
-  k.ringMat.color.setHex(c);
-  if (k.top) k.top.material.color.setHex(c);
-  updateResources();
-  return true;
-}
 function updateResources() {
   let pts = 0, anom = 0;
   for (const k of KEYPOINTS) if (k.owner === myFaction) { pts++; if (k.type === 'anomaly') anom++; }
@@ -2299,6 +2320,513 @@ function updateResources() {
   if (p) p.textContent = myFaction ? pts : '—';
   if (a) a.textContent = myFaction ? anom : '—';
 }
+
+/* ============================================================
+   ИГРОВАЯ СИСТЕМА — юниты, очки, ИИ группировок
+   ============================================================ */
+
+// ---- типы юнитов ----
+const UNIT_TYPES = {
+  collector: {
+    name: 'Собиратель', icon: '🔍', cost: 30,
+    desc: 'Ходит к аномалиям, собирает артефакты',
+    speed: 18, hp: 30, reward: 0,
+  },
+  patrol: {
+    name: 'Патрульный', icon: '🚶', cost: 20,
+    desc: 'Захватывает нейтральные КР поблизости',
+    speed: 22, hp: 40, reward: 0,
+  },
+  soldier: {
+    name: 'Солдат',     icon: '⚔️', cost: 50,
+    desc: 'Захватывает и удерживает территорию',
+    speed: 14, hp: 100, reward: 0,
+  },
+  sniper: {
+    name: 'Снайпер',    icon: '🎯', cost: 60,
+    desc: 'Охраняет КР, атакует врагов в радиусе',
+    speed: 10, hp: 60, reward: 0,
+  },
+  trader: {
+    name: 'Торговец',   icon: '💼', cost: 40,
+    desc: 'Торгует между базами, множит доход',
+    speed: 20, hp: 25, reward: 0,
+  },
+};
+
+// ---- глобальное состояние ----
+const allUnits   = [];
+let unitIdSeq    = 0;
+let lastAITick   = 0;
+
+// ---- вспомогательные ----
+function lerp1d(a, b, t) { return a + (b - a) * t; }
+function dist2d(ax, az, bx, bz) { return Math.hypot(ax - bx, az - bz); }
+function rndFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function getBase(fac) {
+  return KEYPOINTS.find(k => k.owner === fac && k.type === 'base')
+    || KEYPOINTS.find(k => k.owner === fac);
+}
+function getAnomalies(fac) {
+  return KEYPOINTS.filter(k => k.owner === fac && k.type === 'anomaly');
+}
+function getNeutralKPs() {
+  return KEYPOINTS.filter(k => k.owner === 'neutral');
+}
+function getEnemyKPs(fac) {
+  return KEYPOINTS.filter(k => k.owner !== fac && k.owner !== 'neutral');
+}
+
+// ---- логирование событий ----
+const logEl = document.getElementById('eventLog');
+function logEvent(text, color) {
+  if (!logEl) return;
+  const d = document.createElement('div');
+  d.className = 'entry';
+  d.style.borderColor = color || 'var(--geiger)';
+  d.style.color = color || 'var(--ink)';
+  d.textContent = text;
+  logEl.appendChild(d);
+  setTimeout(() => d.remove(), 8000);
+  while (logEl.children.length > 6) logEl.firstChild.remove();
+}
+
+// ---- маркеры юнитов на экране ----
+const markersRoot = document.getElementById('unitMarkers');
+const unitMarkerEls = new Map();
+function getOrCreateMarker(uid, color) {
+  if (!unitMarkerEls.has(uid)) {
+    const el = document.createElement('div');
+    el.className = 'unit-marker';
+    el.style.background = color; el.style.color = color;
+    markersRoot.appendChild(el);
+    unitMarkerEls.set(uid, el);
+  }
+  return unitMarkerEls.get(uid);
+}
+function removeMarker(uid) {
+  const el = unitMarkerEls.get(uid);
+  if (el) { el.remove(); unitMarkerEls.delete(uid); }
+}
+
+// ---- создание юнита ----
+function spawnUnit(type, faction, wx, wz) {
+  const def = UNIT_TYPES[type];
+  if (!def) return null;
+  const col = '#' + (FACTIONS[faction]?.color ?? 0xaaaaaa).toString(16).padStart(6,'0');
+  const u = {
+    id: ++unitIdSeq, type, faction,
+    x: wx, z: wz,
+    hp: def.hp, maxHp: def.hp,
+    speed: def.speed,
+    state: 'idle',   // idle | moving | collecting | returning | capturing | guarding | trading
+    target: null,    // KP или {x,z}
+    targetPos: null, // {x,z}
+    timer: 0,
+    carrying: false, // собиратель несёт артефакт
+    tradeBonus: 0,
+    color: col,
+  };
+  allUnits.push(u);
+  return u;
+}
+
+function removeUnit(u) {
+  const idx = allUnits.indexOf(u);
+  if (idx >= 0) allUnits.splice(idx, 1);
+  removeMarker(u.id);
+}
+
+// ---- движение юнита к точке ----
+function moveUnit(u, dt2) {
+  if (!u.targetPos) return true;
+  const dx = u.targetPos.x - u.x, dz = u.targetPos.z - u.z;
+  const d = Math.hypot(dx, dz);
+  if (d < 1.5) return true;
+  const step = u.speed * dt2;
+  u.x += (dx / d) * step;
+  u.z += (dz / d) * step;
+  return false;
+}
+
+// ---- тик ИИ конкретного юнита ----
+function tickUnit(u, dt2) {
+  u.timer += dt2;
+
+  if (u.type === 'collector') tickCollector(u, dt2);
+  else if (u.type === 'patrol') tickPatrol(u, dt2);
+  else if (u.type === 'soldier') tickSoldier(u, dt2);
+  else if (u.type === 'sniper') tickSniper(u, dt2);
+  else if (u.type === 'trader') tickTrader(u, dt2);
+}
+
+function tickCollector(u, dt2) {
+  const base = getBase(u.faction);
+  if (!base) return;
+
+  if (u.state === 'idle') {
+    // ищем ближайшую аномалию группировки
+    const anoms = getAnomalies(u.faction);
+    if (!anoms.length) { u.state = 'idle'; return; }
+    u.target = anoms.reduce((a, b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
+    u.targetPos = { x: u.target.wx, z: u.target.wz };
+    u.state = 'moving';
+    u.timer = 0;
+
+  } else if (u.state === 'moving') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived) { u.state = 'collecting'; u.timer = 0; }
+
+  } else if (u.state === 'collecting') {
+    // собираем артефакт — занимает 3-6 сек
+    if (u.timer > 3 + Math.random() * 3) {
+      u.carrying = Math.random() < 0.65; // 65% шанс найти
+      u.targetPos = { x: base.wx, z: base.wz };
+      u.state = 'returning';
+      u.timer = 0;
+    }
+
+  } else if (u.state === 'returning') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived) {
+      if (u.carrying && u.faction === myFaction) {
+        const bonus = 8 + Math.floor(Math.random() * 12);
+        
+      } else if (u.carrying) {
+        // ИИ-группировка получает очки
+      }
+      u.carrying = false;
+      u.state = 'idle';
+    }
+  }
+}
+
+function tickPatrol(u, dt2) {
+  if (u.state === 'idle' || u.timer > 15) {
+    // Монолит не выходит за пределы своих зон
+    const isMonolith = u.faction === 'monolith';
+    const limanskOnly = !!u.limanskOnly;
+    const LIMANSK_ZONE = new Set(['LIMANSK-13']);
+
+    const candidates = [
+      ...getNeutralKPs(),
+      ...getEnemyKPs(u.faction).filter(k => dist2d(u.x,u.z,k.wx,k.wz) < 120),
+    ].filter(k => {
+      if (dist2d(u.x,u.z,k.wx,k.wz) > 180) return false;
+      const kZone = ZONES[k.zi];
+      if (limanskOnly) return kZone && LIMANSK_ZONE.has(kZone.en);
+      if (isMonolith) return kZone && MONOLITH_MAX_ZONES.has(kZone.en);
+      return true;
+    });
+
+    if (!candidates.length) {
+      const base = getBase(u.faction);
+      if (base) u.targetPos = { x: base.wx + (Math.random()-0.5)*60, z: base.wz + (Math.random()-0.5)*60 };
+    } else {
+      u.target = candidates.reduce((a,b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
+      u.targetPos = { x: u.target.wx, z: u.target.wz };
+    }
+    u.state = 'moving'; u.timer = 0;
+
+  } else if (u.state === 'moving') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived && u.target) {
+      u.target.scouted = u.faction;
+      u.state = 'idle'; u.timer = 0;
+    } else if (arrived) {
+      u.state = 'idle'; u.timer = 0;
+    }
+  }
+}
+
+function tickSoldier(u, dt2) {
+  if (u.state === 'idle' || u.timer > 20) {
+    const isMonolith = u.faction === 'monolith';
+    const limanskOnly = !!u.limanskOnly;
+    const LIMANSK_ONLY_SET = new Set(['LIMANSK-13']);
+
+    const scoutedKP = KEYPOINTS.find(k => {
+      if (k.scouted !== u.faction || k.owner === u.faction) return false;
+      if (dist2d(u.x,u.z,k.wx,k.wz) > 220) return false;
+      const kZone = ZONES[k.zi];
+      if (limanskOnly) return kZone && LIMANSK_ONLY_SET.has(kZone.en);
+      if (isMonolith) return kZone && MONOLITH_MAX_ZONES.has(kZone.en);
+      return true;
+    });
+    if (scoutedKP) {
+      u.target = scoutedKP;
+      u.targetPos = { x: scoutedKP.wx, z: scoutedKP.wz };
+      u.state = 'capturing'; u.timer = 0;
+    } else {
+      u.state = 'guarding'; u.timer = 0;
+    }
+  } else if (u.state === 'capturing') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived && u.target) {
+      // захват — проверяем нет ли врагов рядом
+      const defenders = allUnits.filter(v =>
+        v.faction !== u.faction && v.type === 'soldier' &&
+        dist2d(u.x,u.z,v.x,v.z) < 15
+      );
+      if (defenders.length > 0) {
+        // бой — наносим урон
+        for (const d of defenders) {
+          d.hp -= 15 + Math.random() * 10;
+          u.hp -= 8 + Math.random() * 8;
+          if (d.hp <= 0) {
+            logEvent(`⚔ ${FACTIONS[u.faction].name} уничтожил бойца ${FACTIONS[d.faction].name}!`, '#d3453a');
+            removeUnit(d);
+          }
+        }
+        if (u.hp <= 0) { removeUnit(u); return; }
+      } else {
+        // захват без боя
+        const prev = u.target.owner;
+        captureKP(u.target, u.faction);
+        const fname = FACTIONS[u.faction]?.name || u.faction;
+        const kname = u.target.ru;
+        logEvent(`⚠ ${fname} захватили «${kname}»`, '#' + (FACTIONS[u.faction]?.color??0xaaaaaa).toString(16).padStart(6,'0'));
+        u.target.scouted = null;
+        u.target = null; u.state = 'guarding'; u.timer = 0;
+      }
+    }
+  } else if (u.state === 'guarding') {
+    // стоим — ждём новых целей
+    if (u.timer > 10) u.state = 'idle';
+  }
+}
+
+function tickSniper(u, dt2) {
+  // Стоит на ближайшем KP группировки и атакует врагов в радиусе 40
+  if (u.state === 'idle') {
+    const myKP = KEYPOINTS.filter(k => k.owner === u.faction);
+    if (myKP.length) {
+      const nearest = myKP.reduce((a,b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
+      u.targetPos = { x: nearest.wx, z: nearest.wz };
+      u.state = 'moving';
+    }
+  } else if (u.state === 'moving') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived) u.state = 'guarding';
+  } else if (u.state === 'guarding') {
+    // каждые 2 сек сканируем врагов
+    if (u.timer > 2) {
+      u.timer = 0;
+      const enemy = allUnits.find(v =>
+        v.faction !== u.faction && dist2d(u.x,u.z,v.x,v.z) < 45
+      );
+      if (enemy) {
+        enemy.hp -= 20 + Math.random() * 15;
+        if (enemy.hp <= 0) {
+          logEvent(`🎯 Снайпер ${FACTIONS[u.faction].name} устранил юнита!`, '#c46a3a');
+          removeUnit(enemy);
+        }
+      }
+    }
+    // если KP захватили — ищем новую позицию
+    const myKPs = KEYPOINTS.filter(k => k.owner === u.faction);
+    if (!myKPs.some(k => dist2d(u.x,u.z,k.wx,k.wz) < 10)) u.state = 'idle';
+  }
+}
+
+function tickTrader(u, dt2) {
+  if (u.state === 'idle' || u.timer > 25) {
+    // торговец ходит между базами разных группировок
+    const bases = KEYPOINTS.filter(k => k.type === 'base' && k.owner !== 'neutral');
+    if (bases.length >= 2) {
+      const dest = bases.filter(b => dist2d(u.x,u.z,b.wx,b.wz) > 40);
+      if (dest.length) {
+        u.target = rndFrom(dest);
+        u.targetPos = { x: u.target.wx, z: u.target.wz };
+        u.state = 'trading'; u.timer = 0;
+      }
+    }
+  } else if (u.state === 'trading') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived) {
+      u.state = 'idle'; u.timer = 0;
+    }
+  }
+}
+
+// ---- мутанты — угрозы ----
+let mutantTimer = 0;
+const mutants = []; // {x,z,hp,target}
+function spawnMutant() {
+  // спавнятся в аномальных зонах
+  const anomKP = KEYPOINTS.filter(k => k.type === 'anomaly');
+  if (!anomKP.length) return;
+  const kp = rndFrom(anomKP);
+  mutants.push({ x: kp.wx + (Math.random()-0.5)*20, z: kp.wz + (Math.random()-0.5)*20, hp:60, target:null, id: ++unitIdSeq });
+}
+function tickMutants(dt2) {
+  mutantTimer += dt2;
+  if (mutantTimer > 18 + Math.random()*12 && mutants.length < 8) {
+    spawnMutant(); mutantTimer = 0;
+  }
+  for (let i = mutants.length-1; i >= 0; i--) {
+    const m = mutants[i];
+    // атакуют ближайшего юнита
+    const prey = allUnits.reduce((best, u) => {
+      const d = dist2d(m.x,m.z,u.x,u.z);
+      return (!best || d < dist2d(m.x,m.z,best.x,best.z)) ? u : best;
+    }, null);
+    if (prey) {
+      const d = dist2d(m.x,m.z,prey.x,prey.z);
+      if (d < 3) {
+        prey.hp -= dt2 * 18;
+        if (prey.hp <= 0) {
+          if (prey.faction === myFaction) logEvent(`☠ Мутант уничтожил вашего ${UNIT_TYPES[prey.type].name}а!`, '#d3453a');
+          removeUnit(prey);
+        }
+      } else {
+        const dx = prey.x - m.x, dz = prey.z - m.z;
+        const step = 12 * dt2;
+        m.x += (dx/d)*step; m.z += (dz/d)*step;
+      }
+    }
+    // убиваем мутанта если рядом снайпер
+    const killer = allUnits.find(u => u.type==='sniper' && dist2d(m.x,m.z,u.x,u.z)<45);
+    if (killer) {
+      if (killer.faction === myFaction) logEvent('мутант устранён');
+      mutants.splice(i,1);
+    }
+  }
+}
+
+// ---- ИИ-группировок: авто-покупка юнитов ----
+const AI_POINTS = {};
+Object.keys(FACTIONS).forEach(f => AI_POINTS[f] = 60);
+
+function tickAI(dt2) {
+  Object.keys(FACTIONS).forEach(fac => {
+    if (fac === myFaction) return;
+    AI_POINTS[fac] += dt2 * 1.5;
+
+    let spawnBase = null;
+    let limanskSpawn = false;
+
+    if (fac === 'monolith') {
+      // Приоритет: основные зоны спавна (обычная цена)
+      const mainKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'monolith' || k.type !== 'base') return false;
+        const z = ZONES[k.zi];
+        return z && MONOLITH_SPAWN_ZONES.has(z.en) && z.en !== 'LIMANSK-13';
+      });
+      // Лиманск — отдельный спавн, цена ×3
+      const limanskKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'monolith' || k.type !== 'base') return false;
+        const z = ZONES[k.zi];
+        return z && z.en === 'LIMANSK-13';
+      });
+
+      if (mainKPs.length) {
+        spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)];
+        limanskSpawn = false;
+      } else if (limanskKPs.length) {
+        spawnBase = limanskKPs[0];
+        limanskSpawn = true;
+      }
+    } else {
+      spawnBase = getBase(fac);
+    }
+
+    if (!spawnBase || AI_POINTS[fac] < 20) return;
+
+    const myKPCount = KEYPOINTS.filter(k=>k.owner===fac).length;
+    let type;
+    const r = Math.random();
+    if (myKPCount === 0) type = 'patrol';
+    else if (r < 0.30) type = 'collector';
+    else if (r < 0.55) type = 'patrol';
+    else if (r < 0.80) type = 'soldier';
+    else type = 'sniper';
+
+    const baseCost = UNIT_TYPES[type].cost;
+    const cost = limanskSpawn ? baseCost * 3 : baseCost;
+
+    if (AI_POINTS[fac] >= cost) {
+      AI_POINTS[fac] -= cost;
+      const u = spawnUnit(type, fac, spawnBase.wx + (Math.random()-0.5)*8, spawnBase.wz + (Math.random()-0.5)*8);
+      // Юниты из Лиманска не уходят дальше него
+      if (u && limanskSpawn) u.limanskOnly = true;
+    }
+  });
+}
+
+// ---- captureKP поддерживает faction-аргумент ----
+function captureKP(k, factionArg) {
+  const f = factionArg || myFaction;
+  if (!f || k.owner === f) return false;
+  k.owner = f;
+  const c = kpColor(k);
+  k.ringMat.color.setHex(c);
+  if (k.top) k.top.material.color.setHex(c);
+  updateResources();
+  return true;
+}
+
+// ---- UI панели юнитов ----
+// ---- главный тик игры ----
+function tickGame(dt2, now) {
+  // тикаем всех юнитов (ИИ)
+  for (const u of [...allUnits]) tickUnit(u, dt2);
+
+  // тик ИИ-закупок раз в 20 сек
+  if (now - lastAITick > 20000) { tickAI(dt2); lastAITick = now; }
+
+  // мутанты
+  tickMutants(dt2);
+
+  // обновляем маркеры юнитов на экране
+  const tmpVec = new THREE.Vector3();
+  for (const u of allUnits) {
+    const col = '#'+((FACTIONS[u.faction]?.color)??0xaaaaaa).toString(16).padStart(6,'0');
+    const el = getOrCreateMarker(u.id, col);
+    tmpVec.set(u.x, topAtWorld(u.x,u.z)+2, u.z).project(camera);
+    if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
+      el.style.display = 'block';
+      el.style.left = ((tmpVec.x*0.5+0.5)*innerWidth)+'px';
+      el.style.top  = ((-tmpVec.y*0.5+0.5)*innerHeight)+'px';
+      el.title = `${UNIT_TYPES[u.type]?.icon||'?'} ${FACTIONS[u.faction]?.name||u.faction} HP:${Math.ceil(u.hp)}`;
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  // мутанты — красные точки
+  for (const m of mutants) {
+    const el = getOrCreateMarker('m'+m.id, '#d3453a');
+    tmpVec.set(m.x, topAtWorld(m.x,m.z)+2, m.z).project(camera);
+    if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
+      el.style.display='block';
+      el.style.left=((tmpVec.x*0.5+0.5)*innerWidth)+'px';
+      el.style.top=((-tmpVec.y*0.5+0.5)*innerHeight)+'px';
+      el.style.background='#d3453a'; el.style.boxShadow='0 0 8px #ff0000';
+    } else el.style.display='none';
+  }
+}
+
+// Инициализируем ИИ группировок при старте (с задержкой)
+setTimeout(() => {
+  Object.keys(FACTIONS).forEach(fac => {
+    if (fac === myFaction) return;
+    let base;
+    if (fac === 'monolith') {
+      const spawnKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'monolith' || k.type !== 'base') return false;
+        const z = ZONES[k.zi]; return z && MONOLITH_SPAWN_ZONES.has(z.en);
+      });
+      base = spawnKPs.length ? spawnKPs[0] : null;
+    } else {
+      base = getBase(fac);
+    }
+    if (!base) return;
+    spawnUnit('patrol', fac, base.wx+(Math.random()-0.5)*8, base.wz+(Math.random()-0.5)*8);
+    if (Math.random()<0.5)
+      spawnUnit('collector', fac, base.wx+(Math.random()-0.5)*8, base.wz+(Math.random()-0.5)*8);
+  });
+}, 3000);
 
 /* ============================================================
    ПОГОДА: дождь + день/ночь + туман
@@ -2423,11 +2951,13 @@ function selectFaction(key, el) {
   myFaction = key;
   document.querySelectorAll('.fac').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
-  banner.textContent = `ТЫ ИГРАЕШЬ ЗА · ${FACTIONS[key].name.toUpperCase()}`;
-  banner.style.color = `#${FACTIONS[key].color.toString(16).padStart(6,'0')}`;
-  banner.classList.add('show');
-  clearTimeout(selectFaction._t);
-  selectFaction._t = setTimeout(() => banner.classList.remove('show'), 2600);
+  if (banner) {
+    banner.textContent = `ТЫ ИГРАЕШЬ ЗА · ${FACTIONS[key].name.toUpperCase()}`;
+    banner.style.color = `#${FACTIONS[key].color.toString(16).padStart(6,'0')}`;
+    banner.classList.add('show');
+    clearTimeout(selectFaction._t);
+    selectFaction._t = setTimeout(() => banner.classList.remove('show'), 2600);
+  }
   updateResources();
 }
 
@@ -2461,6 +2991,7 @@ KEYPOINTS.forEach(k => {
 /* ---- клик = захват точки ---- */
 const kpInfo = document.getElementById('kpInfo');
 function showKPInfo(k) {
+  if (!kpInfo) return;
   const owner = k.owner === 'neutral' ? 'нейтрально' : FACTIONS[k.owner].name;
   const typ = k.type === 'anomaly' ? `аномалия «${ANOM[k.kind].name}» · ресурс` : KP_TYPE[k.type];
   const hint = !myFaction ? 'выбери группировку слева'
@@ -2578,6 +3109,8 @@ function frame() {
     zoneShrink[i] += (shrinkTarget - zoneShrink[i]) * (1 - Math.pow(0.5, dt / 0.18));
   }
   updateBuildings();
+
+  tickGame(dt, performance.now());
 
   updateKeypoints(dt, tx, tz);
 
@@ -2848,7 +3381,7 @@ const boot = document.getElementById('boot');
 document.getElementById('bootMsg').textContent = 'сборка карты: ' + (groundCount + buildingVox.length).toLocaleString('ru') + ' вокселей (карта ×3) …';
 requestAnimationFrame(() => {
   frame();
-  setTimeout(() => boot.classList.add('hide'), 400);
+  if (boot) setTimeout(() => boot.classList.add('hide'), 400);
 });
 
 // на всякий случай — если three не подгрузился

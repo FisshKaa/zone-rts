@@ -219,6 +219,8 @@
   #kpInfo span { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10.5px; color: var(--dim); margin-top: 2px; }
   #kpInfo em { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px;
     color: var(--geiger); font-style: normal; letter-spacing: .08em; margin-top: 5px; }
+
+  @media (max-width: 640px) {
     #brand .panel { min-width: 0; }
     #brand h1 { font-size: 18px; letter-spacing: .22em; }
     #factions .panel { width: 200px; }
@@ -391,7 +393,7 @@ const ZONES = [
   { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.150, fac:'monolith', base:false, biome:'city'       }, // промышленный объект
   { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.240, fac:'monolith', base:true,  biome:'waste'      }, // аномальная пустошь
   // Чистое небо — средний пояс (север)
-  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.72, nz:0.955, fac:'military', base:false, biome:'city'       }, // засекреченный объект
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.72, nz:0.955, fac:'military', base:true, biome:'city'       }, // засекреченный объект
   { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.268, fac:'monolith', base:false, anomaly:true, biome:'deadforest' }, // радиоактивный мёртвый лес
   { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.285, fac:'neutral',  base:false, biome:'rocky'      }, // скалистые развалины
   { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:true,  biome:'city'       }, // полузатопленный город
@@ -404,9 +406,9 @@ const ZONES = [
   { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.600, fac:'eco',      base:true,  anomaly:true, biome:'swamp' }, // аномальные болота
   { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.590, fac:'duty',     base:true,  biome:'city'       }, // промышленный узел
   { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.620, fac:'neutral',  base:false, biome:'rocky'      }, // скалистая окраина
-  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.648, fac:'bandits',  base:false, biome:'waste'      }, // заброшенный завод
-  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.718, fac:'bandits',  base:true,  biome:'rocky'      }, // ущелье с зарослями
-  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.758, fac:'military', base:true,  biome:'waste'      }, // руины НИИ
+  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.648, fac:'neutral',  base:false, biome:'waste'      }, // заброшенный завод — ничей
+  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.718, fac:'bandits',  base:true,  biome:'rocky'      }, // база бандитов
+  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.758, fac:'military', base:false,  biome:'waste'      }, // руины НИИ
   { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.748, fac:'loners',   base:false, biome:'waste'      }, // промышленная свалка
   { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.788, fac:'neutral',  base:false, biome:'forest'     }, // ж/д станция в лесу
   // SoC — юг (ближайший к периметру)
@@ -885,7 +887,7 @@ const ZAPOLYE_KP = [
 
 // ---- ЗАВОД (бандиты, SoC) ----
 const FACTORY_KP = [
-  { ru: 'Цех бандитов',          dx:   0, dz:  -4, type: 'base',       owner: 'bandits'  },
+  { ru: 'Цех бандитов',          dx:   0, dz:  -4, type: 'settlement', owner: 'neutral'  },
   { ru: 'Литейный цех',          dx:  10, dz:   6, type: 'settlement', owner: 'bandits'  },
   { ru: 'Склад трофеев',         dx: -10, dz:   4, type: 'settlement', owner: 'bandits'  },
   { ru: 'Ж/Д тупик',             dx:   6, dz: -14, type: 'chokepoint', owner: 'neutral'  },
@@ -1023,8 +1025,12 @@ for (let zi = 0; zi < ZONES.length; zi++) {
 // Правило 1: все КР кроме главной базы группировки → neutral
 // Правило 2: Монолит сразу занимает Припять, Генераторы, ЧАЭС, Радар целиком
 const MONOLITH_ZONES = new Set(['PRIPYAT', 'GENERATORS', 'C.N.P.P', 'RADAR', 'RED FOREST', 'LABYRINTH', 'LIMANSK-13']);
-const MONOLITH_SPAWN_ZONES = new Set(['C.N.P.P', 'GENERATORS', 'RED FOREST', 'LABYRINTH', 'LIMANSK-13']); // спавн только здесь
-const MONOLITH_MAX_ZONES = MONOLITH_ZONES; // дальше не ходит
+const MONOLITH_SPAWN_ZONES = new Set(['C.N.P.P', 'GENERATORS', 'RED FOREST', 'LABYRINTH', 'LIMANSK-13']);
+const MONOLITH_MAX_ZONES = MONOLITH_ZONES;
+
+// Одиночки: основной спавн — Кордон, дорогой (×3) — Затон и Юпитер
+const LONERS_MAIN_SPAWN  = new Set(['CORDON']);
+const LONERS_EXTRA_SPAWN = new Set(['ZATON', 'JUPITER']); // ×3
 
 for (const k of KEYPOINTS) {
   const zone = ZONES[k.zi];
@@ -2884,19 +2890,16 @@ function tickAI(dt2) {
     let limanskSpawn = false;
 
     if (fac === 'monolith') {
-      // Приоритет: основные зоны спавна (обычная цена)
       const mainKPs = KEYPOINTS.filter(k => {
         if (k.owner !== 'monolith' || k.type !== 'base') return false;
         const z = ZONES[k.zi];
         return z && MONOLITH_SPAWN_ZONES.has(z.en) && z.en !== 'LIMANSK-13';
       });
-      // Лиманск — отдельный спавн, цена ×3
       const limanskKPs = KEYPOINTS.filter(k => {
         if (k.owner !== 'monolith' || k.type !== 'base') return false;
         const z = ZONES[k.zi];
         return z && z.en === 'LIMANSK-13';
       });
-
       if (mainKPs.length) {
         spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)];
         limanskSpawn = false;
@@ -2904,6 +2907,28 @@ function tickAI(dt2) {
         spawnBase = limanskKPs[0];
         limanskSpawn = true;
       }
+
+    } else if (fac === 'loners') {
+      // Основной спавн — Кордон (обычная цена)
+      const mainKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'loners' || k.type !== 'base') return false;
+        const z = ZONES[k.zi];
+        return z && LONERS_MAIN_SPAWN.has(z.en);
+      });
+      // Затон и Юпитер — ×3
+      const extraKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'loners' || k.type !== 'base') return false;
+        const z = ZONES[k.zi];
+        return z && LONERS_EXTRA_SPAWN.has(z.en);
+      });
+      if (mainKPs.length) {
+        spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)];
+        limanskSpawn = false;
+      } else if (extraKPs.length) {
+        spawnBase = extraKPs[Math.floor(Math.random() * extraKPs.length)];
+        limanskSpawn = true; // флаг = дорогой спавн (×3)
+      }
+
     } else {
       spawnBase = getBase(fac);
     }
@@ -3067,6 +3092,12 @@ setTimeout(() => {
         const z = ZONES[k.zi]; return z && MONOLITH_SPAWN_ZONES.has(z.en);
       });
       base = spawnKPs.length ? spawnKPs[0] : null;
+    } else if (fac === 'loners') {
+      const cordonKPs = KEYPOINTS.filter(k => {
+        if (k.owner !== 'loners' || k.type !== 'base') return false;
+        const z = ZONES[k.zi]; return z && LONERS_MAIN_SPAWN.has(z.en);
+      });
+      base = cordonKPs.length ? cordonKPs[0] : getBase(fac);
     } else {
       base = getBase(fac);
     }

@@ -257,32 +257,37 @@ const FACTIONS = {
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
-  { en:'ZATON',         ru:'Затон',          nx:0.18, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      },
-  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.72, nz:0.955, fac:'military', base:false, biome:'city'       },
-  { en:'JUPITER',       ru:'Юпитер',         nx:0.14, nz:0.235, fac:'mercs',    base:false, biome:'waste'      },
-  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.135, fac:'monolith', base:false, biome:'city'       },
-  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.150, fac:'monolith', base:false, biome:'city'       },
-  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.240, fac:'monolith', base:true,  biome:'waste'      },
-  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.268, fac:'monolith', base:false, anomaly:true, biome:'deadforest' },
-  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.285, fac:'neutral',  base:false, biome:'rocky'      },
-  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:true,  biome:'city'       },
-  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.345, fac:'monolith', base:true,  anomaly:true, biome:'swamp' },
-  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.375, fac:'mercs',    base:true,  biome:'city'       },
-  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.415, fac:'neutral',  base:false, biome:'waste'      },
-  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.515, fac:'neutral',  base:false, biome:'forest'     },
-  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.515, fac:'freedom',  base:true,  biome:'forest'     },
-  { en:'MARSH',         ru:'Топи',           nx:0.13, nz:0.870, fac:'csky',     base:true,  biome:'swamp'      },
-  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.28, nz:0.895, fac:'renegade', base:true,  biome:'swamp'      },
-  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.895, fac:'neutral',  base:false, biome:'city'       },
-  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.600, fac:'eco',      base:true,  anomaly:true, biome:'swamp' },
-  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.590, fac:'duty',     base:true,  biome:'city'       },
-  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.620, fac:'neutral',  base:false, biome:'waste'      },
-  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.648, fac:'bandits',  base:false, biome:'waste'      },
-  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.718, fac:'bandits',  base:true,  biome:'rocky'      },
-  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.758, fac:'military', base:true,  biome:'waste'      },
-  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.748, fac:'loners',   base:false, biome:'waste'      },
-  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.788, fac:'neutral',  base:false, biome:'forest'     },
-  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.878, fac:'loners',   base:true,  biome:'forest'     },
+  // Зов Припяти — север
+  { en:'ZATON',         ru:'Затон',          nx:0.18, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      }, // затопленная промзона, болота
+  { en:'JUPITER',       ru:'Юпитер',         nx:0.14, nz:0.235, fac:'mercs',    base:false, biome:'waste'      }, // индустриальная пустошь
+  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.135, fac:'monolith', base:false, biome:'city'       }, // мёртвый город
+  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.150, fac:'monolith', base:false, biome:'city'       }, // промышленный объект
+  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.240, fac:'monolith', base:true,  biome:'waste'      }, // аномальная пустошь
+  // Чистое небо — средний пояс (север)
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.72, nz:0.955, fac:'military', base:false, biome:'city'       }, // засекреченный объект
+  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.268, fac:'monolith', base:false, anomaly:true, biome:'deadforest' }, // радиоактивный мёртвый лес
+  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.285, fac:'neutral',  base:false, biome:'rocky'      }, // скалистые развалины
+  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:true,  biome:'city'       }, // полузатопленный город
+  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.345, fac:'monolith', base:true,  anomaly:true, biome:'swamp' }, // заболоченная зона у Дуги
+  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.375, fac:'mercs',    base:true,  biome:'city'       }, // покинутый городок
+  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.415, fac:'neutral',  base:false, biome:'waste'      }, // выжженная пустошь
+  // SoC — средний пояс
+  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.515, fac:'neutral',  base:false, biome:'forest'     }, // лесная развилка
+  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.515, fac:'freedom',  base:true,  biome:'forest'     }, // лес со складами
+  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.600, fac:'eco',      base:true,  anomaly:true, biome:'swamp' }, // аномальные болота
+  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.590, fac:'duty',     base:true,  biome:'city'       }, // промышленный узел
+  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.620, fac:'neutral',  base:false, biome:'rocky'      }, // скалистая окраина
+  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.648, fac:'bandits',  base:false, biome:'waste'      }, // заброшенный завод
+  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.718, fac:'bandits',  base:true,  biome:'rocky'      }, // ущелье с зарослями
+  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.758, fac:'military', base:true,  biome:'waste'      }, // руины НИИ
+  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.748, fac:'loners',   base:false, biome:'waste'      }, // промышленная свалка
+  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.788, fac:'neutral',  base:false, biome:'forest'     }, // ж/д станция в лесу
+  // SoC — юг (ближайший к периметру)
+  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.878, fac:'loners',   base:true,  biome:'forest'     }, // лесистый кордон
+  // Чистое небо — болота (юго-запад)
+  { en:'MARSH',         ru:'Топи',           nx:0.13, nz:0.870, fac:'csky',     base:true,  biome:'swamp'      }, // болота ЧН
+  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.28, nz:0.895, fac:'renegade', base:true,  biome:'swamp'      }, // великие болота ЧН
+  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.895, fac:'neutral',  base:false, biome:'forest'     }, // густой лес с оврагами
 ];
 
 // перевод нормированных координат в мир
@@ -327,33 +332,44 @@ function mulberry32(a) {
   };
 }
 
-/* ---- вода: река Припять (широкая, с изгибами) + болота + озёра ---- */
+/* ---- вода: только пруд-охладитель ЧАЭС + короткий рукав Припяти + болота по лору ---- */
 function waterLevelAt(gx, gz) {
   const nx = gx / GX, nz = gz / GZ;
 
-  // Река Припять — широкая, течёт с севера на юг по правой части карты
-  const riverX = 0.72 + 0.06 * Math.sin(gz * 0.022) + 0.03 * Math.sin(gz * 0.051);
-  const riverW = 0.038 + 0.012 * valueNoise(gz * 0.04, 11.3);
-  if (Math.abs(nx - riverX) < riverW) return true;
+  // Охладительный пруд ЧАЭС — большое искусственное озеро восточнее станции
+  // (в лоре это именно пруд-охладитель, не река)
+  const pondCX = 0.83, pondCZ = 0.235;
+  const pondRX = 0.10, pondRZ = 0.055;
+  const dPond = ((nx - pondCX) / pondRX) ** 2 + ((nz - pondCZ) / pondRZ) ** 2;
+  if (dPond < 1 + 0.15 * valueNoise(gx * 0.09, gz * 0.09)) return true;
 
-  // Охладительный пруд ЧАЭС (большое прямоугольное озеро)
-  if (nx > 0.76 && nx < 0.95 && nz > 0.18 && nz < 0.32) return true;
+  // Короткий рукав Припяти — только севернее ЧАЭС, уходит вправо-вверх к Генераторам
+  // Не пересекает всю карту, просто локальная излучина
+  if (nz > 0.10 && nz < 0.22) {
+    const rx = 0.90 + 0.04 * Math.sin((nz - 0.10) * 60) + 0.02 * Math.cos((nz - 0.10) * 130);
+    if (Math.abs(nx - rx) < 0.022 + 0.008 * valueNoise(gz * 0.12, 7.3)) return true;
+  }
 
-  // Болото Затона (север-запад) — неровное пятно
-  const zatonBogX = 0.11, zatonBogZ = 0.10;
-  const dZaton = Math.hypot((nx - zatonBogX) * 2.2, nz - zatonBogZ);
-  if (dZaton < 0.038 + 0.015 * valueNoise(gx * 0.08, gz * 0.08)) return true;
+  // Болото Затона — характерная заболоченность, неровные края
+  const zatonBogX = 0.18, zatonBogZ = 0.075;
+  const dZaton = Math.hypot((nx - zatonBogX) * 2.8, nz - zatonBogZ);
+  if (dZaton < 0.032 + 0.014 * valueNoise(gx * 0.09, gz * 0.09)) return true;
 
-  // Болото Великих Топей (запад, середина)
-  const marshX = 0.10, marshZ = 0.58;
-  if (Math.hypot((nx - marshX) * 1.6, nz - marshZ) < 0.042 + 0.018 * valueNoise(gx * 0.07, gz * 0.07 + 5)) return true;
+  // Болото у Топей — мелкие лужи и заболоченность (Clear Sky)
+  const marshX = 0.13, marshZ = 0.870;
+  if (Math.hypot((nx - marshX) * 2.0, nz - marshZ) < 0.030 + 0.012 * valueNoise(gx * 0.08, gz * 0.08 + 3)) return true;
 
-  // Янтарь — аномальное болото
-  const yanX = 0.36, yanZ = 0.63;
-  if (Math.hypot((nx - yanX) * 1.4, nz - yanZ) < 0.028 + 0.01 * valueNoise(gx * 0.1, gz * 0.1 + 9)) return true;
+  // Великие Болота — широкая заболоченная зона (Clear Sky)
+  const swampX = 0.28, swampZ = 0.895;
+  if (Math.hypot((nx - swampX) * 1.6, (nz - swampZ) * 1.2) < 0.038 + 0.016 * valueNoise(gx * 0.07, gz * 0.07 + 6)) return true;
 
-  // мелкие лужи и пруды (процедурно)
-  if (valueNoise(gx * 0.06 + 3.1, gz * 0.06 + 3.1) > 0.83 && valueNoise(gx * 0.12, gz * 0.12) > 0.72) return true;
+  // Янтарь — токсичное озерцо в центре аномальной зоны
+  const yanX = 0.36, yanZ = 0.600;
+  if (Math.hypot((nx - yanX) * 2.0, nz - yanZ) < 0.018 + 0.008 * valueNoise(gx * 0.12, gz * 0.12 + 11)) return true;
+
+  // Радар — небольшое болото у подножия антенн (по лору там заболоченная местность)
+  const radX = 0.38, radZ = 0.345;
+  if (Math.hypot((nx - radX) * 2.5, nz - radZ) < 0.016 + 0.006 * valueNoise(gx * 0.14, gz * 0.14 + 9)) return true;
 
   return false;
 }
@@ -436,12 +452,12 @@ const C = {
 };
 // палитра «характера» региона
 const BIOME_COL = {
-  forest:     new THREE.Color(0x354a2c),
-  swamp:      new THREE.Color(0x2e3b2c),
-  city:       new THREE.Color(0x565850),
-  waste:      new THREE.Color(0x6a5c3c),
-  rocky:      new THREE.Color(0x6e6656),
-  deadforest: new THREE.Color(0x6a3f2a),
+  forest:     new THREE.Color(0x354a2c),  // сочный тёмно-зелёный лес Кордона
+  swamp:      new THREE.Color(0x2e3b2a),  // тёмно-болотный, с зеленью
+  city:       new THREE.Color(0x52544e),  // серый бетон мёртвых городов
+  waste:      new THREE.Color(0x6a5a38),  // выжженная охра пустошей
+  rocky:      new THREE.Color(0x5e5648),  // серо-коричневые скалы
+  deadforest: new THREE.Color(0x6b3d24),  // ржавый Рыжий лес
 };
 
 const groundGeo = new THREE.BoxGeometry(TILE, 1, TILE);
@@ -1081,6 +1097,231 @@ function topAtWorld(wx, wz) {
   return topAt[gz * GX + gx];
 }
 KEYPOINTS.forEach(k => { k.gTop = topAtWorld(k.wx, k.wz); });
+
+/* ============================================================
+   ДЕРЕВЬЯ — instanced воксельные, расставляются процедурно.
+   Биом определяет тип и плотность; у дорог — просека (зазор).
+   ============================================================ */
+const TREE_VOX = [];   // {x, z, layer, ground, color}
+function pushTree(wx, wz, ly, gTop, color) {
+  TREE_VOX.push({ x: wx, z: wz, layer: ly, ground: gTop, color });
+}
+
+// Типы деревьев по биому
+const TREE_TYPES = {
+  forest:     { trunkH: [2,4], crownR: [2,3], trunkC: [0x3d2b1a,0x4a3322], crownC: [0x2d4a1e,0x3a5a26,0x253d16], density: 0.18 },
+  swamp:      { trunkH: [1,3], crownR: [1,2], trunkC: [0x2a2018,0x3a2e22], crownC: [0x2a3d22,0x1e2e18,0x344a28], density: 0.10 },
+  deadforest: { trunkH: [2,5], crownR: [0,0], trunkC: [0x4a2e1a,0x5a3a22,0x3a2214], crownC: [], density: 0.16 },
+  waste:      { trunkH: [1,2], crownR: [0,1], trunkC: [0x5a4a32,0x4a3c28], crownC: [0x4a4a2a,0x3a3a1e], density: 0.04 },
+  rocky:      { trunkH: [1,2], crownR: [1,1], trunkC: [0x4a3c2a,0x3a2e1e], crownC: [0x2e3e20,0x243218], density: 0.05 },
+  city:       { trunkH: [0,0], crownR: [0,0], trunkC: [], crownC: [], density: 0.0  },
+};
+
+// Сетка размещения деревьев — каждые N тайлов кандидат
+const TREE_GRID = 3;   // одно дерево на каждые 3×3 тайлов максимум
+const _treeRnd = mulberry32(42424242);
+
+for (let gz = 0; gz < GZ; gz += TREE_GRID) {
+  for (let gx = 0; gx < GX; gx += TREE_GRID) {
+    // Небольшой разброс внутри ячейки
+    const jx = Math.floor(_treeRnd() * TREE_GRID);
+    const jz = Math.floor(_treeRnd() * TREE_GRID);
+    const tgx = gx + jx, tgz = gz + jz;
+    if (tgx >= GX || tgz >= GZ) continue;
+
+    const wx = (tgx - GX / 2 + 0.5) * TILE;
+    const wz = (tgz - GZ / 2 + 0.5) * TILE;
+
+    // Проверяем дорогу — у дорог просека (зазор ~4 юнита)
+    const roadStr = ROAD_COLOR_AT(wx, wz);
+    if (roadStr > 0.25) continue;   // дорога — не сажаем
+
+    // Вода — не сажаем
+    if (waterLevelAt(tgx, tgz)) continue;
+
+    // Определяем биом ближайшей зоны
+    const near = nearestZone(wx, wz);
+    const biome = near.z.biome || 'forest';
+    const tt = TREE_TYPES[biome];
+    if (!tt || tt.density === 0) continue;
+
+    // Вероятность по биому + шум
+    const noiseVal = fbm(tgx * 0.06 + 77, tgz * 0.06 + 77, 3);
+    const prob = tt.density * (0.5 + noiseVal);
+    if (_treeRnd() > prob) continue;
+
+    // Не сажаем слишком близко к ключевым точкам (зданиям)
+    let tooClose = false;
+    for (const k of KEYPOINTS) {
+      if (Math.hypot(k.wx - wx, k.wz - wz) < 6) { tooClose = true; break; }
+    }
+    if (tooClose) continue;
+    // Не сажаем на зонах-поселениях
+    if (near.dist < 8 && near.z.fac !== 'neutral') continue;
+
+    const gTop = topAtWorld(wx, wz);
+    const trunkH = tt.trunkH[0] + Math.floor(_treeRnd() * (tt.trunkH[1] - tt.trunkH[0] + 1));
+    const crownR = tt.crownR[0] + Math.floor(_treeRnd() * (tt.crownR[1] - tt.crownR[0] + 1));
+
+    // Ствол
+    if (tt.trunkC.length && trunkH > 0) {
+      const tc = new THREE.Color(tt.trunkC[Math.floor(_treeRnd() * tt.trunkC.length)]);
+      for (let ly = 0; ly < trunkH; ly++) pushTree(wx, wz, ly, gTop, tc.clone().offsetHSL(0, 0, (_treeRnd() - 0.5) * 0.06));
+    }
+
+    // Крона (сфероид из вокселей)
+    if (crownR > 0 && tt.crownC.length) {
+      const cc = new THREE.Color(tt.crownC[Math.floor(_treeRnd() * tt.crownC.length)]);
+      for (let cx = -crownR; cx <= crownR; cx++) {
+        for (let cz = -crownR; cz <= crownR; cz++) {
+          for (let cy = 0; cy <= crownR; cy++) {
+            const dist2 = (cx/crownR)**2 + (cy/crownR)**2 * 0.7 + (cz/crownR)**2;
+            if (dist2 > 1.0) continue;
+            if (_treeRnd() < 0.12) continue;  // дырки для объёма
+            const ly = trunkH + cy;
+            pushTree(wx + cx, wz + cz, ly, gTop, cc.clone().offsetHSL(0, 0, (_treeRnd() - 0.5) * 0.08));
+          }
+        }
+      }
+    }
+  }
+}
+
+// Отдельный instanced меш для деревьев (не мешается с зданиями)
+const treeGeo = new THREE.BoxGeometry(0.88, 1, 0.88);
+const treeMat = new THREE.MeshLambertMaterial();
+const treeMesh = new THREE.InstancedMesh(treeGeo, treeMat, TREE_VOX.length);
+treeMesh.frustumCulled = false;
+scene.add(treeMesh);
+for (let i = 0; i < TREE_VOX.length; i++) treeMesh.setColorAt(i, TREE_VOX[i].color);
+treeMesh.instanceColor.needsUpdate = true;
+
+// Деревья проявляются вместе с регионом при зуме
+// Деревья всегда показаны — не зависят от зума
+let treeReveal = 1;
+const treeMaxLayer = TREE_VOX.reduce((m, v) => Math.max(m, v.layer), 1);
+const treeDummy = new THREE.Object3D();
+function updateTrees(reveal) {
+  for (let i = 0; i < TREE_VOX.length; i++) {
+    const v = TREE_VOX[i];
+    const rise = reveal * (treeMaxLayer + 1.5);
+    const s = THREE.MathUtils.clamp(rise - v.layer, 0, 1);
+    if (s <= 0.001) {
+      treeDummy.position.set(0, -9999, 0); treeDummy.scale.set(0.0001, 0.0001, 0.0001);
+    } else {
+      treeDummy.position.set(v.x, v.ground + v.layer + s / 2, v.z);
+      treeDummy.scale.set(1, s, 1);
+    }
+    treeDummy.updateMatrix();
+    treeMesh.setMatrixAt(i, treeDummy.matrix);
+  }
+  treeMesh.instanceMatrix.needsUpdate = true;
+}
+updateTrees(1);   // сразу полностью
+
+/* ============================================================
+   ПРИДОРОЖНЫЕ ОБЪЕКТЫ — столбы, камни, брошенные машины,
+   кусты. Расставляются вдоль всех дорог с шагом ~8 юнитов.
+   ============================================================ */
+const ROAD_VOX = [];
+function pushRoad(wx, wz, ly, gTop, color) {
+  ROAD_VOX.push({ x: wx, z: wz, layer: ly, ground: gTop, color });
+}
+
+const _rRnd = mulberry32(13371337);
+const ROAD_STEP = 6;   // шаг вдоль сегмента в юнитах
+
+for (const seg of _roadSegs) {
+  const abx = seg.bx - seg.ax, abz = seg.bz - seg.az;
+  const len = Math.sqrt(abx * abx + abz * abz);
+  if (len < 1) continue;
+  const nx_ = abx / len, nz_ = abz / len;   // нормаль вдоль дороги
+  const px = -nz_, pz = nx_;               // перпендикуляр
+
+  const steps = Math.floor(len / ROAD_STEP);
+  for (let si = 1; si < steps; si++) {
+    const t = si / steps;
+    const cx = seg.ax + abx * t, cz = seg.az + abz * t;
+
+    // Каждые 2 шага — пара объектов по обе стороны
+    for (const side of [-1, 1]) {
+      if (_rRnd() > 0.55) continue;   // не на каждой точке
+
+      // отступ от края дороги: 1.5..3.5 юнита
+      const offset = (seg.w + 1.5 + _rRnd() * 2.0) * side;
+      const ox = cx + px * offset + (_rRnd() - 0.5) * 1.5;
+      const oz = cz + pz * offset + (_rRnd() - 0.5) * 1.5;
+
+      if (waterLevelAt(
+        Math.round(ox / TILE + GX / 2 - 0.5),
+        Math.round(oz / TILE + GZ / 2 - 0.5)
+      )) continue;
+
+      const gTop = topAtWorld(ox, oz);
+      const type = _rRnd();
+
+      if (type < 0.30) {
+        // Электрический столб — тонкая высокая стойка
+        const poleH = 4 + Math.floor(_rRnd() * 3);
+        const poleC = new THREE.Color(0x4a3c28).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.08);
+        for (let ly = 0; ly < poleH; ly++) pushRoad(ox, oz, ly, gTop, poleC.clone());
+        // перекладина
+        pushRoad(ox - 0.5, oz, poleH, gTop, poleC.clone());
+        pushRoad(ox + 0.5, oz, poleH, gTop, poleC.clone());
+
+      } else if (type < 0.52) {
+        // Придорожный камень / бетонный блок
+        const bH = 1 + Math.floor(_rRnd() * 2);
+        const bW = 1 + Math.floor(_rRnd() * 2);
+        const rockC = new THREE.Color(_rRnd() < 0.5 ? 0x6a6560 : 0x5a5248).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.07);
+        for (let bx = 0; bx < bW; bx++)
+          for (let ly = 0; ly < bH; ly++)
+            pushRoad(ox + bx - bW / 2, oz, ly, gTop, rockC.clone());
+
+      } else if (type < 0.70) {
+        // Ржавая машина — низкая коробка с кабиной
+        const carC = new THREE.Color([0x7a4a30, 0x5a5a4a, 0x6a4a38, 0x484840][Math.floor(_rRnd() * 4)]).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.06);
+        const angle = _rRnd() * 4 | 0;   // 0..3 ориентации
+        const [dx1, dz1] = angle < 2 ? [2, 0] : [0, 2];
+        for (let i = 0; i < 4; i++) {
+          pushRoad(ox + (i - 1.5) * (dx1 ? 0.7 : 0.3), oz + (i - 1.5) * (dz1 ? 0.7 : 0.3), 0, gTop, carC.clone());
+          pushRoad(ox + (i - 1.5) * (dx1 ? 0.7 : 0.3), oz + (i - 1.5) * (dz1 ? 0.7 : 0.3), 1, gTop, carC.clone());
+        }
+        // кабина
+        pushRoad(ox + (dx1 ? 0.7 : 0), oz + (dz1 ? 0.7 : 0), 2, gTop, carC.clone().offsetHSL(0, 0, 0.05));
+
+      } else {
+        // Кустарник — пара низких вокселей с зеленью
+        const bushC = new THREE.Color(_rRnd() < 0.4 ? 0x2d4220 : 0x3a4e28).offsetHSL(0, 0, (_rRnd() - 0.5) * 0.07);
+        const bR = 1 + Math.floor(_rRnd() * 2);
+        for (let bx = -bR; bx <= bR; bx++)
+          for (let bz2 = -bR; bz2 <= bR; bz2++)
+            if (Math.hypot(bx, bz2) <= bR && _rRnd() > 0.2)
+              pushRoad(ox + bx * 0.7, oz + bz2 * 0.7, 0, gTop, bushC.clone());
+      }
+    }
+  }
+}
+
+const roadVoxGeo = new THREE.BoxGeometry(0.85, 1, 0.85);
+const roadVoxMat = new THREE.MeshLambertMaterial();
+const roadMesh = new THREE.InstancedMesh(roadVoxGeo, roadVoxMat, Math.max(1, ROAD_VOX.length));
+roadMesh.frustumCulled = false;
+scene.add(roadMesh);
+for (let i = 0; i < ROAD_VOX.length; i++) roadMesh.setColorAt(i, ROAD_VOX[i].color);
+if (ROAD_VOX.length) roadMesh.instanceColor.needsUpdate = true;
+
+// Придорожные объекты — тоже всегда видны
+const roadMaxLayer = ROAD_VOX.reduce((m, v) => Math.max(m, v.layer), 1);
+const roadDummy = new THREE.Object3D();
+for (let i = 0; i < ROAD_VOX.length; i++) {
+  const v = ROAD_VOX[i];
+  roadDummy.position.set(v.x, v.ground + v.layer + 0.5, v.z);
+  roadDummy.scale.set(1, 1, 1);
+  roadDummy.updateMatrix();
+  roadMesh.setMatrixAt(i, roadDummy.matrix);
+}
+roadMesh.instanceMatrix.needsUpdate = true;
 
 /* ============================================================
    ЗДАНИЯ-LEGO (instanced, растут снизу вверх при зуме)

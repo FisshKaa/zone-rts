@@ -117,6 +117,48 @@
   }
   #hint b { color: var(--geiger); font-weight: 400; }
 
+  /* ---- маркеры юнитов ---- */
+  #unitMarkers { position:fixed; inset:0; z-index:15; pointer-events:none; overflow:hidden; }
+  .unit-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center;
+    pointer-events: none;
+    transition: left 0.14s linear, top 0.14s linear;
+    filter: drop-shadow(0 1px 5px rgba(0,0,0,.9));
+  }
+  .unit-marker .um-body {
+    width: 20px; height: 20px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; line-height: 1;
+    background: rgba(5,7,10,0.82);
+    border: 2px solid currentColor;
+    box-shadow: 0 0 6px currentColor, inset 0 0 4px rgba(0,0,0,.6);
+  }
+  .unit-marker .um-hp {
+    margin-top: 2px; width: 20px; height: 2px;
+    background: rgba(0,0,0,0.6); border-radius: 1px; overflow: hidden;
+  }
+  .unit-marker .um-hp-fill { height: 100%; border-radius: 1px; }
+  .unit-marker .um-label {
+    font-family: 'Share Tech Mono', monospace; font-size: 7.5px;
+    color: rgba(255,255,255,0.7); letter-spacing:.02em; margin-top:1px;
+    text-shadow: 0 1px 3px #000; white-space: nowrap;
+  }
+  .unit-marker.mutant .um-body { border-radius: 50%; }
+
+  /* ---- лог событий ---- */
+  #eventLog {
+    bottom: 16px; left: 50%; transform: translateX(-50%);
+    width: 380px; pointer-events:none;
+  }
+  #eventLog .entry {
+    font-family:'Share Tech Mono',monospace; font-size:10.5px; letter-spacing:.04em;
+    padding:3px 8px; margin-bottom:2px; background:rgba(11,15,10,.78);
+    border-left:2px solid var(--geiger); animation: fadeLog 7s forwards;
+  }
+  @keyframes fadeLog { 0%{opacity:1} 65%{opacity:1} 100%{opacity:0} }
+
   /* map labels */
   #labels { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; }
   .lbl {
@@ -2395,15 +2437,32 @@ function logEvent(text, color) {
 // ---- маркеры юнитов на экране ----
 const markersRoot = document.getElementById('unitMarkers');
 const unitMarkerEls = new Map();
-function getOrCreateMarker(uid, color) {
+
+const UNIT_ICONS = { collector:'🔍', patrol:'🚶', soldier:'⚔', sniper:'🎯', trader:'💼' };
+
+function getOrCreateMarker(uid, isMutant) {
   if (!unitMarkerEls.has(uid)) {
     const el = document.createElement('div');
-    el.className = 'unit-marker';
-    el.style.background = color; el.style.color = color;
+    el.className = 'unit-marker' + (isMutant ? ' mutant' : '');
+    el.innerHTML = `
+      <div class="um-body"></div>
+      <div class="um-hp"><div class="um-hp-fill"></div></div>
+      <div class="um-label"></div>`;
     markersRoot.appendChild(el);
     unitMarkerEls.set(uid, el);
   }
   return unitMarkerEls.get(uid);
+}
+
+function updateMarker(el, col, icon, label, hpPct) {
+  const body = el.querySelector('.um-body');
+  const fill = el.querySelector('.um-hp-fill');
+  const lbl  = el.querySelector('.um-label');
+  body.style.color = col;
+  body.textContent = icon;
+  fill.style.width = Math.max(0, Math.min(100, hpPct * 100)) + '%';
+  fill.style.background = hpPct > 0.5 ? '#4a9' : hpPct > 0.25 ? '#ca4' : '#d33';
+  if (lbl) lbl.textContent = label;
 }
 function removeMarker(uid) {
   const el = unitMarkerEls.get(uid);
@@ -2783,26 +2842,33 @@ function tickGame(dt2, now) {
   const tmpVec = new THREE.Vector3();
   for (const u of allUnits) {
     const col = '#'+((FACTIONS[u.faction]?.color)??0xaaaaaa).toString(16).padStart(6,'0');
-    const el = getOrCreateMarker(u.id, col);
+    const el = getOrCreateMarker(u.id, false);
     tmpVec.set(u.x, topAtWorld(u.x,u.z)+2, u.z).project(camera);
     if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
-      el.style.display = 'block';
-      el.style.left = ((tmpVec.x*0.5+0.5)*innerWidth)+'px';
-      el.style.top  = ((-tmpVec.y*0.5+0.5)*innerHeight)+'px';
-      el.title = `${UNIT_TYPES[u.type]?.icon||'?'} ${FACTIONS[u.faction]?.name||u.faction} HP:${Math.ceil(u.hp)}`;
+      const sx = (tmpVec.x*0.5+0.5)*innerWidth;
+      const sy = (-tmpVec.y*0.5+0.5)*innerHeight;
+      el.style.display = 'flex';
+      el.style.left = sx + 'px';
+      el.style.top  = sy + 'px';
+      const icon  = UNIT_ICONS[u.type] || '?';
+      const fname = FACTIONS[u.faction]?.name || u.faction;
+      const state = u.state === 'collecting' ? 'сбор' : u.state === 'returning' ? 'база' :
+                    u.state === 'capturing'  ? 'захват' : u.state === 'guarding' ? 'охрана' :
+                    u.state === 'trading'    ? 'торг' : u.state === 'moving' ? '→' : '…';
+      updateMarker(el, col, icon, fname.slice(0,6)+' '+state, u.hp/u.maxHp);
     } else {
       el.style.display = 'none';
     }
   }
-  // мутанты — красные точки
+  // мутанты
   for (const m of mutants) {
-    const el = getOrCreateMarker('m'+m.id, '#d3453a');
+    const el = getOrCreateMarker('m'+m.id, true);
     tmpVec.set(m.x, topAtWorld(m.x,m.z)+2, m.z).project(camera);
     if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
-      el.style.display='block';
+      el.style.display='flex';
       el.style.left=((tmpVec.x*0.5+0.5)*innerWidth)+'px';
       el.style.top=((-tmpVec.y*0.5+0.5)*innerHeight)+'px';
-      el.style.background='#d3453a'; el.style.boxShadow='0 0 8px #ff0000';
+      updateMarker(el, '#d3453a', '☠', 'мутант', m.hp/60);
     } else el.style.display='none';
   }
 }

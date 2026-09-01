@@ -2372,27 +2372,27 @@ const UNIT_TYPES = {
   collector: {
     name: 'Собиратель', icon: '🔍', cost: 30,
     desc: 'Ходит к аномалиям, собирает артефакты',
-    speed: 18, hp: 30, reward: 0,
+    speed: 4.5, hp: 30, reward: 0,
   },
   patrol: {
     name: 'Патрульный', icon: '🚶', cost: 20,
     desc: 'Захватывает нейтральные КР поблизости',
-    speed: 22, hp: 40, reward: 0,
+    speed: 5.5, hp: 40, reward: 0,
   },
   soldier: {
     name: 'Солдат',     icon: '⚔️', cost: 50,
     desc: 'Захватывает и удерживает территорию',
-    speed: 14, hp: 100, reward: 0,
+    speed: 3.5, hp: 100, reward: 0,
   },
   sniper: {
     name: 'Снайпер',    icon: '🎯', cost: 60,
     desc: 'Охраняет КР, атакует врагов в радиусе',
-    speed: 10, hp: 60, reward: 0,
+    speed: 2.5, hp: 60, reward: 0,
   },
   trader: {
     name: 'Торговец',   icon: '💼', cost: 40,
     desc: 'Торгует между базами, множит доход',
-    speed: 20, hp: 25, reward: 0,
+    speed: 5.0, hp: 25, reward: 0,
   },
 };
 
@@ -2739,10 +2739,37 @@ function tickMutants(dt2) {
         if (prey.hp <= 0) {
           logEvent(`☠ Мутант уничтожил ${FACTIONS[prey.faction]?.name||prey.faction} ${UNIT_TYPES[prey.type]?.name||'юнита'}!`, '#d3453a');
           removeUnit(prey);
+          // 35% шанс исчезнуть после убийства
+          if (Math.random() < 0.35) {
+            logEvent('☠ Мутант растворился в аномалии', '#d3453a');
+            mutants.splice(i, 1);
+            removeMarker('m' + m.id);
+            break;
+          }
+          // 10% шанс переключиться на другую группировку сталкеров
+          if (Math.random() < 0.10) {
+            const otherFactions = Object.keys(FACTIONS).filter(f => {
+              return allUnits.some(u => u.faction === f);
+            });
+            if (otherFactions.length) {
+              const newTarget = otherFactions[Math.floor(Math.random() * otherFactions.length)];
+              m.targetFaction = newTarget;
+              logEvent(`☠ Мутант переключился на ${FACTIONS[newTarget]?.name||newTarget}!`, '#c46a3a');
+            }
+          }
         }
       } else {
-        const dx = prey.x - m.x, dz = prey.z - m.z;
-        m.x += (dx/d)*12*dt2; m.z += (dz/d)*12*dt2;
+        // если есть целевая фракция — идём к ближайшему из неё
+        const targetPool = m.targetFaction
+          ? allUnits.filter(u => u.faction === m.targetFaction)
+          : allUnits;
+        const newPrey = targetPool.reduce((best, u) => {
+          const d2 = dist2d(m.x,m.z,u.x,u.z);
+          return (!best || d2 < dist2d(m.x,m.z,best.x,best.z)) ? u : best;
+        }, null) || prey;
+        const dx = newPrey.x - m.x, dz = newPrey.z - m.z;
+        const dd = Math.hypot(dx, dz) || 1;
+        m.x += (dx/dd)*12*dt2; m.z += (dz/dd)*12*dt2;
       }
     }
 

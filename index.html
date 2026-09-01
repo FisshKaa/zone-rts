@@ -528,6 +528,7 @@ for (let zi = 0; zi < ZONES.length; zi++) {
 
 const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
 buildings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+buildings.frustumCulled = false;   // иначе меш отсекается по устаревшей bounding sphere
 scene.add(buildings);
 for (let i = 0; i < buildingVox.length; i++) buildings.setColorAt(i, buildingVox[i].color);
 buildings.instanceColor.needsUpdate = true;
@@ -733,8 +734,9 @@ function frame() {
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
   for (const b of beacons) {
     if (b.beam) { b.mat.opacity = beamVis * 0.55; b.beam.visible = beamVis > 0.02; }
-    let d = 0.35 + 0.25 * (b.base ? pulse : 0.5);
-    if (b.anomaly) d = 0.4 + 0.5 * pulse;
+    const near = 0.25 + 0.75 * (1 - zoom01);   // вблизи тусклее, издалека ярче
+    let d = (0.35 + 0.25 * (b.base ? pulse : 0.5)) * near;
+    if (b.anomaly) d = (0.4 + 0.5 * pulse) * near;
     b.discMat.opacity = d;
   }
 

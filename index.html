@@ -2591,111 +2591,147 @@ function tickCollector(u, dt2) {
   if (!base) return;
 
   if (u.state === 'idle') {
-    // ищем ближайшую аномалию группировки
     const anoms = getAnomalies(u.faction);
-    if (!anoms.length) { u.state = 'idle'; return; }
-    u.target = anoms.reduce((a, b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
-    u.targetPos = { x: u.target.wx, z: u.target.wz };
-    u.state = 'moving';
-    u.timer = 0;
+    if (!anoms.length) {
+      // нет аномалий — бродим вокруг базы
+      u.targetPos = { x: base.wx + (Math.random()-0.5)*80, z: base.wz + (Math.random()-0.5)*80 };
+      u.state = 'moving'; u.timer = 0; return;
+    }
+    // Каждый собиратель выбирает СЛУЧАЙНУЮ аномалию (не ближайшую) — разбивает поезд
+    const anom = anoms[Math.floor(Math.random() * anoms.length)];
+    // + случайный оффсет вокруг аномалии
+    const jx = (Math.random()-0.5) * 20, jz = (Math.random()-0.5) * 20;
+    u.target = anom;
+    u.targetPos = { x: anom.wx + jx, z: anom.wz + jz };
+    u.state = 'moving'; u.timer = 0;
 
   } else if (u.state === 'moving') {
     const arrived = moveUnit(u, dt2);
     if (arrived) { u.state = 'collecting'; u.timer = 0; }
 
   } else if (u.state === 'collecting') {
-    // собираем артефакт — занимает 3-6 сек
-    if (u.timer > 3 + Math.random() * 3) {
-      u.carrying = Math.random() < 0.65; // 65% шанс найти
-      u.targetPos = { x: base.wx, z: base.wz };
-      u.state = 'returning';
-      u.timer = 0;
+    if (u.timer > 3 + Math.random() * 4) {
+      u.carrying = Math.random() < 0.65;
+      // возвращаемся к базе с небольшим разбросом
+      u.targetPos = { x: base.wx + (Math.random()-0.5)*12, z: base.wz + (Math.random()-0.5)*12 };
+      u.state = 'returning'; u.timer = 0;
     }
 
   } else if (u.state === 'returning') {
     const arrived = moveUnit(u, dt2);
     if (arrived) {
-      if (u.carrying && u.faction === myFaction) {
-        const bonus = 8 + Math.floor(Math.random() * 12);
-        
-      } else if (u.carrying) {
-        // ИИ-группировка получает очки
-      }
       u.carrying = false;
       u.state = 'idle';
+      // небольшая пауза перед следующим рейдом
+      u.timer = -(3 + Math.random() * 5);
     }
   }
 }
 
 function tickPatrol(u, dt2) {
-  if (u.state === 'idle' || u.timer > 15) {
-    // Монолит не выходит за пределы своих зон
+  if (u.state === 'idle' || u.timer > 12) {
     const isMonolith = u.faction === 'monolith';
     const limanskOnly = !!u.limanskOnly;
     const LIMANSK_ZONE = new Set(['LIMANSK-13']);
 
-    const candidates = [
+    // Берём всех кандидатов и перемешиваем — не идут к одному
+    let candidates = [
       ...getNeutralKPs(),
-      ...getEnemyKPs(u.faction).filter(k => dist2d(u.x,u.z,k.wx,k.wz) < 120),
+      ...getEnemyKPs(u.faction).filter(k => dist2d(u.x,u.z,k.wx,k.wz) < 150),
+      // иногда патрулируем и свои занятые KP
+      ...KEYPOINTS.filter(k => k.owner === u.faction && Math.random() < 0.2),
     ].filter(k => {
-      if (dist2d(u.x,u.z,k.wx,k.wz) > 180) return false;
+      const d = dist2d(u.x,u.z,k.wx,k.wz);
+      if (d > 200) return false;
       const kZone = ZONES[k.zi];
       if (limanskOnly) return kZone && LIMANSK_ZONE.has(kZone.en);
       if (isMonolith) return kZone && MONOLITH_MAX_ZONES.has(kZone.en);
       return true;
     });
 
-    if (!candidates.length) {
-      const base = getBase(u.faction);
-      if (base) u.targetPos = { x: base.wx + (Math.random()-0.5)*60, z: base.wz + (Math.random()-0.5)*60 };
+    // Исключаем KP куда уже идут другие патрули нашей фракции
+    const busyKPs = new Set(
+      allUnits.filter(v => v !== u && v.faction === u.faction && v.target)
+               .map(v => v.target)
+    );
+    const free = candidates.filter(k => !busyKPs.has(k));
+    if (free.length) candidates = free;
+
+    if (candidates.length) {
+      // Берём случайный из топ-5 ближайших
+      candidates.sort((a,b) => dist2d(u.x,u.z,a.wx,a.wz) - dist2d(u.x,u.z,b.wx,b.wz));
+      const pool = candidates.slice(0, Math.min(5, candidates.length));
+      u.target = pool[Math.floor(Math.random() * pool.length)];
+      u.targetPos = {
+        x: u.target.wx + (Math.random()-0.5)*16,
+        z: u.target.wz + (Math.random()-0.5)*16,
+      };
     } else {
-      u.target = candidates.reduce((a,b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
-      u.targetPos = { x: u.target.wx, z: u.target.wz };
+      // Нет целей — бродим по зоне в случайном направлении
+      const base = getBase(u.faction);
+      const bx = base ? base.wx : u.x, bz = base ? base.wz : u.z;
+      u.target = null;
+      u.targetPos = { x: bx + (Math.random()-0.5)*120, z: bz + (Math.random()-0.5)*120 };
     }
     u.state = 'moving'; u.timer = 0;
 
   } else if (u.state === 'moving') {
     const arrived = moveUnit(u, dt2);
-    if (arrived && u.target) {
-      u.target.scouted = u.faction;
-      u.state = 'idle'; u.timer = 0;
-    } else if (arrived) {
-      u.state = 'idle'; u.timer = 0;
+    if (arrived) {
+      if (u.target) u.target.scouted = u.faction;
+      u.state = 'idle';
+      // небольшая пауза на месте перед следующим маршем
+      u.timer = -(2 + Math.random() * 4);
     }
   }
 }
 
 function tickSoldier(u, dt2) {
-  if (u.state === 'idle' || u.timer > 20) {
+  if (u.state === 'idle' || u.timer > 15) {
     const isMonolith = u.faction === 'monolith';
     const limanskOnly = !!u.limanskOnly;
     const LIMANSK_ONLY_SET = new Set(['LIMANSK-13']);
 
-    const scoutedKP = KEYPOINTS.find(k => {
-      if (k.scouted !== u.faction || k.owner === u.faction) return false;
-      if (dist2d(u.x,u.z,k.wx,k.wz) > 220) return false;
+    const filterZone = k => {
       const kZone = ZONES[k.zi];
       if (limanskOnly) return kZone && LIMANSK_ONLY_SET.has(kZone.en);
       if (isMonolith) return kZone && MONOLITH_MAX_ZONES.has(kZone.en);
       return true;
-    });
+    };
+
+    // Ищем разведанный KP
+    const scoutedKP = KEYPOINTS.find(k =>
+      k.scouted === u.faction && k.owner !== u.faction &&
+      dist2d(u.x,u.z,k.wx,k.wz) < 250 && filterZone(k)
+    );
+
     if (scoutedKP) {
       u.target = scoutedKP;
       u.targetPos = { x: scoutedKP.wx, z: scoutedKP.wz };
       u.state = 'capturing'; u.timer = 0;
     } else {
-      u.state = 'guarding'; u.timer = 0;
+      // Нет цели — идём патрулировать один из своих KP (случайный, не ближайший)
+      const myKPs = KEYPOINTS.filter(k => k.owner === u.faction && filterZone(k));
+      if (myKPs.length) {
+        const pick = myKPs[Math.floor(Math.random() * myKPs.length)];
+        u.targetPos = {
+          x: pick.wx + (Math.random()-0.5)*24,
+          z: pick.wz + (Math.random()-0.5)*24,
+        };
+        u.state = 'moving'; u.timer = 0;
+      } else {
+        u.state = 'guarding'; u.timer = 0;
+      }
     }
+
   } else if (u.state === 'capturing') {
     const arrived = moveUnit(u, dt2);
     if (arrived && u.target) {
-      // захват — проверяем нет ли врагов рядом
       const defenders = allUnits.filter(v =>
         v.faction !== u.faction && v.type === 'soldier' &&
         dist2d(u.x,u.z,v.x,v.z) < 15
       );
       if (defenders.length > 0) {
-        // бой — наносим урон
         for (const d of defenders) {
           d.hp -= 15 + Math.random() * 10;
           u.hp -= 8 + Math.random() * 8;
@@ -2706,19 +2742,22 @@ function tickSoldier(u, dt2) {
         }
         if (u.hp <= 0) { removeUnit(u); return; }
       } else {
-        // захват без боя
-        const prev = u.target.owner;
         captureKP(u.target, u.faction);
         const fname = FACTIONS[u.faction]?.name || u.faction;
-        const kname = u.target.ru;
-        logEvent(`⚠ ${fname} захватили «${kname}»`, '#' + (FACTIONS[u.faction]?.color??0xaaaaaa).toString(16).padStart(6,'0'));
+        logEvent(`⚠ ${fname} захватили «${u.target.ru}»`, '#' + (FACTIONS[u.faction]?.color??0xaaaaaa).toString(16).padStart(6,'0'));
         u.target.scouted = null;
-        u.target = null; u.state = 'guarding'; u.timer = 0;
+        u.target = null;
+        // После захвата сразу ищем следующую цель, не стоим
+        u.state = 'idle'; u.timer = 0;
       }
     }
+
+  } else if (u.state === 'moving') {
+    const arrived = moveUnit(u, dt2);
+    if (arrived) { u.state = 'idle'; u.timer = -(2 + Math.random()*3); }
+
   } else if (u.state === 'guarding') {
-    // стоим — ждём новых целей
-    if (u.timer > 10) u.state = 'idle';
+    if (u.timer > 8) u.state = 'idle';
   }
 }
 

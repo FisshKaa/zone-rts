@@ -2726,7 +2726,8 @@ function tickMutants(dt2) {
   }
   for (let i = mutants.length-1; i >= 0; i--) {
     const m = mutants[i];
-    // атакуют ближайшего юнита
+
+    // ---- мутант атакует ближайшего юнита ----
     const prey = allUnits.reduce((best, u) => {
       const d = dist2d(m.x,m.z,u.x,u.z);
       return (!best || d < dist2d(m.x,m.z,best.x,best.z)) ? u : best;
@@ -2736,20 +2737,35 @@ function tickMutants(dt2) {
       if (d < 3) {
         prey.hp -= dt2 * 18;
         if (prey.hp <= 0) {
-          if (prey.faction === myFaction) logEvent(`☠ Мутант уничтожил вашего ${UNIT_TYPES[prey.type].name}а!`, '#d3453a');
+          logEvent(`☠ Мутант уничтожил ${FACTIONS[prey.faction]?.name||prey.faction} ${UNIT_TYPES[prey.type]?.name||'юнита'}!`, '#d3453a');
           removeUnit(prey);
         }
       } else {
         const dx = prey.x - m.x, dz = prey.z - m.z;
-        const step = 12 * dt2;
-        m.x += (dx/d)*step; m.z += (dz/d)*step;
+        m.x += (dx/d)*12*dt2; m.z += (dz/d)*12*dt2;
       }
     }
-    // убиваем мутанта если рядом снайпер
-    const killer = allUnits.find(u => u.type==='sniper' && dist2d(m.x,m.z,u.x,u.z)<45);
-    if (killer) {
-      if (killer.faction === myFaction) logEvent('мутант устранён');
-      mutants.splice(i,1);
+
+    // ---- любой юнит вблизи контратакует мутанта ----
+    // снайпер — издалека (радиус 45), остальные — в упор (радиус 6)
+    // патрульный — наносит урон но не добивает (оставляет 50% HP)
+    for (const u of allUnits) {
+      const d = dist2d(m.x,m.z,u.x,u.z);
+      const range = u.type === 'sniper' ? 45 : 6;
+      if (d > range) continue;
+
+      const dmg = u.type === 'sniper'  ? dt2 * 25 :
+                  u.type === 'soldier' ? dt2 * 20 :
+                  u.type === 'patrol'  ? dt2 * 12 : dt2 * 6;
+      const minHp = u.type === 'patrol' ? m.hp * 0.5 : 0; // патруль оставляет 50%
+      m.hp = Math.max(minHp, m.hp - dmg);
+
+      if (m.hp <= 0) {
+        logEvent(`✓ ${FACTIONS[u.faction]?.name||u.faction} уничтожил мутанта`, '#' + (FACTIONS[u.faction]?.color??0xaaaaaa).toString(16).padStart(6,'0'));
+        mutants.splice(i, 1);
+        removeMarker('m' + m.id);
+        break;
+      }
     }
   }
 }

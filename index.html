@@ -478,7 +478,7 @@ const CONCRETE = [0x8d8f86, 0x9a9c92, 0x76786f, 0x6a6d64];
 /* ---- архетипы лэндмарков ---- */
 // Радар — антенна «Дуга» (гигантская решётчатая стена)
 function archDuga(z, zi, gTop, rnd) {
-  const W = 22, H = 15, metal = () => tint(0x6b7075, rnd);
+  const W = 18, H = 12, metal = () => tint(0x6b7075, rnd);
   for (let x = 0; x < W; x++)
     for (let ly = 0; ly < H; ly++) {
       if (x % 2 === 0 || ly % 3 === 0 || (x + ly) % 4 === 0) {
@@ -493,7 +493,7 @@ function archDuga(z, zi, gTop, rnd) {
 }
 // Припять — колесо обозрения
 function archFerris(z, zi, gTop, rnd) {
-  const R = 6, hub = R + 1, yellow = () => tint(0x9a8a3a, rnd);
+  const R = 5, hub = R + 1, yellow = () => tint(0x9a8a3a, rnd);
   for (let a = 0; a < 44; a++) {
     const ang = a / 44 * Math.PI * 2;
     const x = Math.round(Math.cos(ang) * R), y = Math.round(Math.sin(ang) * R) + hub;
@@ -514,25 +514,54 @@ function archFerris(z, zi, gTop, rnd) {
   }
   archRuins(z, zi, gTop, rnd, null, 3);   // немного руин рядом
 }
-// Росток/Завод/Юпитер — цеха с трубами
+// Росток/Завод/Юпитер — цеха с трубами (варьируются)
 function archFactory(z, zi, gTop, rnd, faccol) {
-  const grey = () => tint(0x83857c, rnd).lerp(faccol || new THREE.Color(0x808080), 0.12);
-  fillBox(z, zi, gTop, z.wx, z.wz, 8, 5, 3, grey, rnd, { windows: true });
-  fillBox(z, zi, gTop, z.wx + 3, z.wz + 4, 4, 3, 4, grey, rnd, { windows: true });
-  for (const off of [[-3, -2], [-1, -2]])
-    for (let ly = 0; ly < 12; ly++) pushVox(z.wx + off[0], z.wz + off[1], ly, gTop, tint(0x7a5a4a, rnd), zi);
-  // «градирня» — сужающийся столб
-  for (let ly = 0; ly < 7; ly++) {
-    const r = ly < 5 ? 2 : 1;
-    for (let x = -r; x <= r; x++)
-      for (let zz = -r; zz <= r; zz++)
-        if (Math.abs(x) === r || Math.abs(zz) === r || ly === 6)
-          pushVox(z.wx + 6 + x, z.wz - 3 + zz, ly, gTop, tint(0x8b8d84, rnd), zi);
+  const base = faccol || new THREE.Color(0x808080);
+  const grey = () => tint(0x83857c, rnd).lerp(base, 0.12);
+  const brick = () => tint(0x7a5a4a, rnd);
+  const hw = 6 + Math.floor(rnd() * 3), hd = 4 + Math.floor(rnd() * 2);
+  fillBox(z, zi, gTop, z.wx, z.wz, hw, hd, 3, grey, rnd, { windows: true });
+  // пристройка со случайным смещением
+  const ax = (rnd() < 0.5 ? -1 : 1) * (2 + Math.floor(rnd() * 2));
+  fillBox(z, zi, gTop, z.wx + ax, z.wz + (rnd() < 0.5 ? 3 : -3),
+    3 + Math.floor(rnd() * 2), 3, 2 + Math.floor(rnd() * 2), grey, rnd, { windows: true });
+  // 1..3 трубы разной высоты в разных местах
+  const chimneys = 1 + Math.floor(rnd() * 3);
+  for (let i = 0; i < chimneys; i++) {
+    const cx = z.wx - Math.floor(hw / 2) + Math.floor(rnd() * hw);
+    const cz = z.wz - Math.floor(hd / 2) - 1 - Math.floor(rnd() * 2);
+    const ch = 7 + Math.floor(rnd() * 4);
+    for (let ly = 0; ly < ch; ly++) pushVox(cx, cz, ly, gTop, brick(), zi);
   }
+  // иногда — градирня
+  if (rnd() < 0.5) {
+    const gx = z.wx + Math.floor(hw / 2) + 1, gz = z.wz - 2;
+    for (let ly = 0; ly < 6; ly++) {
+      const r = ly < 4 ? 2 : 1;
+      for (let x = -r; x <= r; x++)
+        for (let zz = -r; zz <= r; zz++)
+          if (Math.abs(x) === r || Math.abs(zz) === r || ly === 5)
+            pushVox(gx + x, gz + zz, ly, gTop, tint(0x8b8d84, rnd), zi);
+    }
+  }
+}
+// Тёмная долина — бандитская база: забор, барак, дом, вышка
+function archCompound(z, zi, gTop, rnd, faccol) {
+  const base = faccol || new THREE.Color(0x808080);
+  const wall = () => tint(0x6a5a44, rnd);
+  const wood = () => tint(0x6b5236, rnd).lerp(base, 0.1);
+  const R = 6;
+  for (let x = -R; x <= R; x++) { pushVox(z.wx + x, z.wz - R, 0, gTop, wall(), zi); pushVox(z.wx + x, z.wz + R, 0, gTop, wall(), zi); }
+  for (let zz = -R; zz <= R; zz++) { pushVox(z.wx - R, z.wz + zz, 0, gTop, wall(), zi); pushVox(z.wx + R, z.wz + zz, 0, gTop, wall(), zi); }
+  fillBox(z, zi, gTop, z.wx - 2, z.wz, 4, 3, 2, wood, rnd, {});
+  for (let x = 0; x < 4; x++) pushVox(z.wx - 2 + x - 1.5, z.wz, 2, gTop, tint(0x7a4a34, rnd), zi);
+  fillBox(z, zi, gTop, z.wx + 2, z.wz - 2, 3, 3, 3, wood, rnd, { windows: true });
+  for (let ly = 0; ly < 5; ly++) pushVox(z.wx - R + 1, z.wz + R - 1, ly, gTop, tint(0x5c4a34, rnd), zi);
+  fillBox(z, zi, gTop, z.wx - R + 1, z.wz + R - 1, 2, 2, 1, wood, rnd, {});
 }
 // Затон — севший на мель корабль «Скадовск»
 function archShip(z, zi, gTop, rnd) {
-  const rust = () => tint(0x7a4e34, rnd), L = 12, Wd = 4;
+  const rust = () => tint(0x7a4e34, rnd), L = 10, Wd = 4;
   for (let x = 0; x < L; x++) {
     const taper = Math.min(x, L - 1 - x), w = Math.min(Wd, 1 + taper);
     for (let zz = -w; zz <= w; zz++)
@@ -582,15 +611,28 @@ function archMilitary(z, zi, gTop, rnd, faccol) {
   fillBox(z, zi, gTop, z.wx - 3, z.wz - 2, 2, 2, 1, c, rnd, {});
   for (let x = -4; x <= 4; x++) pushVox(z.wx + x, z.wz - 3, 0, gTop, tint(0x7a6a4a, rnd), zi);
 }
-// Свалка — кран + контейнеры
+// Свалка — кран, штабели контейнеров, металлолом
 function archJunkyard(z, zi, gTop, rnd) {
-  for (let ly = 0; ly < 9; ly++) pushVox(z.wx - 3, z.wz, ly, gTop, tint(0x8a6a2a, rnd), zi);
-  for (let x = 0; x < 6; x++) pushVox(z.wx - 3 + x, z.wz, 8, gTop, tint(0x8a6a2a, rnd), zi);
-  const cont = [0x7a4e34, 0x3f6a5a, 0x8a7a2e, 0x5a5a6a];
-  for (let i = 0; i < 6; i++) {
-    const ox = Math.round((rnd() - 0.5) * 8), oz = Math.round((rnd() - 0.5) * 8);
-    fillBox(z, zi, gTop, z.wx + ox, z.wz + oz, 2 + Math.floor(rnd() * 2), 2, 1 + Math.floor(rnd() * 2),
-      () => tint(cont[Math.floor(rnd() * cont.length)], rnd), rnd, {});
+  const cx = z.wx - 4, cz = z.wz + 2, crane = () => tint(0x9a7a2a, rnd);
+  for (let ly = 0; ly < 10; ly++) pushVox(cx, cz, ly, gTop, crane(), zi);      // мачта
+  for (let x = 1; x <= 7; x++) pushVox(cx + x, cz, 9, gTop, crane(), zi);       // стрела
+  pushVox(cx + 7, cz, 8, gTop, tint(0x555555, rnd), zi);                        // трос
+  pushVox(cx + 7, cz, 6, gTop, tint(0x8a3a30, rnd), zi);                        // подвешенный кузов
+  const cont = [0x9a4030, 0x2f6a5a, 0xb0902e, 0x3a5a7a, 0x7a4e34];
+  for (let r = 0; r < 3; r++)
+    for (let cN = 0; cN < 3; cN++) {
+      if (rnd() < 0.25) continue;
+      const bx = z.wx + cN * 2, bz = z.wz - 2 + r * 2, stack = 1 + Math.floor(rnd() * 2);
+      for (let s = 0; s < stack; s++) {
+        const c = tint(cont[Math.floor(rnd() * cont.length)], rnd);
+        for (let ax = 0; ax < 2; ax++) for (let az = 0; az < 2; az++)
+          pushVox(bx + ax, bz + az, s, gTop, c, zi);
+      }
+    }
+  const scrap = [0x6a5a4a, 0x7a4e34, 0x555a5a];
+  for (let i = 0; i < 8; i++) {
+    const ox = Math.round((rnd() - 0.5) * 6), oz = Math.round((rnd() - 0.5) * 6);
+    pushVox(z.wx + ox, z.wz + oz + 3, 0, gTop, tint(scrap[Math.floor(rnd() * 3)], rnd), zi);
   }
 }
 // деревня — избы с крышами
@@ -612,7 +654,7 @@ function archRuins(z, zi, gTop, rnd, faccol, count) {
   const n = count || (3 + Math.floor(rnd() * 4));
   for (let i = 0; i < n; i++) {
     const ox = Math.round((rnd() - 0.5) * 9), oz = Math.round((rnd() - 0.5) * 9);
-    const w = 2 + Math.floor(rnd() * 2), d = 2 + Math.floor(rnd() * 2), h = 3 + Math.floor(rnd() * 5);
+    const w = 2 + Math.floor(rnd() * 2), d = 2 + Math.floor(rnd() * 2), h = 2 + Math.floor(rnd() * 4);
     fillBox(z, zi, gTop, z.wx + ox, z.wz + oz, w, d, h,
       () => tint(CONCRETE[Math.floor(rnd() * CONCRETE.length)], rnd), rnd, { windows: true, ruin: 0.5 });
   }
@@ -631,7 +673,7 @@ function archDeadTrees(z, zi, gTop, rnd) {
 function buildCNPP(z, zi) {
   const gTop = topAtWorld(z.wx, z.wz);
   const silver = new THREE.Color(0xb9c1c7), hallC = new THREE.Color(0x86887f), cyan = new THREE.Color(FACTIONS.monolith.color);
-  const R = 6, DEPTH = 3;
+  const R = 5, DEPTH = 3;
   for (let x = -R; x <= R; x++) {
     const top = Math.round(Math.sqrt(Math.max(0, R * R - x * x)) * 1.15);
     for (let zz = -DEPTH; zz <= DEPTH; zz++)
@@ -641,13 +683,13 @@ function buildCNPP(z, zi) {
         pushVox(z.wx + x, z.wz + zz, ly, gTop, silver.clone().lerp(cyan, 0.12).offsetHSL(0, 0, (Math.random() - 0.5) * 0.04), zi);
       }
   }
-  for (let x = R + 1; x <= R + 9; x++)
+  for (let x = R + 1; x <= R + 7; x++)
     for (let zz = -2; zz <= 2; zz++)
       for (let ly = 0; ly < 3; ly++)
         pushVox(z.wx + x, z.wz + zz, ly, gTop, hallC.clone().offsetHSL(0, 0, (Math.random() - 0.5) * 0.05), zi);
-  for (let ly = 0; ly < 15; ly++) {
+  for (let ly = 0; ly < 12; ly++) {
     const c = (Math.floor(ly / 2) % 2 === 0) ? new THREE.Color(0xcf4a3a) : new THREE.Color(0xe8e2d8);
-    pushVox(z.wx + R + 8, z.wz - 1, ly, gTop, c, zi);
+    pushVox(z.wx + R + 6, z.wz - 1, ly, gTop, c, zi);
   }
 }
 
@@ -659,7 +701,7 @@ const ARCH = {
   'DEAD CITY': archRuins, 'DEADLANDS': archRuins, 'CROSSROADS': archVillage,
   'ARMY WAREHOUSES': archWarehouses, 'MARSH': archVillage, 'YANTAR': archBunker,
   'ROSTOK': archFactory, 'ZAPOLYE': archRuins, 'FACTORY': archFactory,
-  'DARK VALLEY': archFactory, 'AGROPROM': archInstitute, 'GARBAGE': archJunkyard,
+  'DARK VALLEY': archCompound, 'AGROPROM': archInstitute, 'GARBAGE': archJunkyard,
   'WAYSTATION': archVillage, 'CORDON': archVillage, 'GREAT SWAMP': archVillage,
   'DARKSCAPE': archRuins,
 };
@@ -833,18 +875,16 @@ const sectorEl = document.getElementById('sectorTxt');
    ЦИКЛ
    ============================================================ */
 const tmpV = new THREE.Vector3();
-const mProj = new THREE.Matrix4();
-let zoom01 = 0, buildReveal = -1, introT = 0;
+let zoom01 = 0;
 const clock = new THREE.Clock();
 
-function updateBuildings(reveal) {
-  // reveal 0..1 — насколько «собраны» здания
-  const grown = reveal;
+const zoneReveal = new Float32Array(ZONES.length);   // 0..1 на зону
+
+function updateBuildings() {
   for (let i = 0; i < buildingVox.length; i++) {
     const v = buildingVox[i];
-    // слой появляется, когда rise перевалит за его высоту
-    const rise = grown * (maxLayer + 1.5);
-    let s = THREE.MathUtils.clamp(rise - v.layer, 0, 1);
+    const rise = zoneReveal[v.zone] * (maxLayer + 1.5);
+    const s = THREE.MathUtils.clamp(rise - v.layer, 0, 1);
     if (s <= 0.001) {
       dummy.position.set(0, -9999, 0); dummy.scale.set(0.0001, 0.0001, 0.0001);
     } else {
@@ -856,7 +896,7 @@ function updateBuildings(reveal) {
   }
   buildings.instanceMatrix.needsUpdate = true;
 }
-updateBuildings(0);
+updateBuildings();
 
 function frame() {
   requestAnimationFrame(frame);
@@ -865,23 +905,28 @@ function frame() {
   controls.update();
   clampToMap();
 
-  // ---- интро-сборка зданий (разово на старте), дальше стоят всегда ----
-  if (introT < 2.6) {
-    introT += dt;
-    const reveal = smooth(THREE.MathUtils.clamp(introT / 2.4, 0, 1));
-    updateBuildings(reveal);
-  }
-
-  // ---- зум (для подписей и деталей) ----
+  // ---- зум ----
   const dist = camera.position.distanceTo(controls.target);
   zoom01 = THREE.MathUtils.clamp((controls.maxDistance - dist) / (controls.maxDistance - controls.minDistance), 0, 1);
 
-  // маркеры: луч базы ярче издалека и гаснет вблизи; шайба-владелец видна всегда
-  const beamVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.4) / 0.35, 0, 1));
+  // ---- здания: появляются при приближении к региону ----
+  const zoomFactor = smooth(THREE.MathUtils.clamp((zoom01 - 0.30) / 0.30, 0, 1));
+  const tx = controls.target.x, tz = controls.target.z;
+  for (let i = 0; i < ZONES.length; i++) {
+    const zc = ZONES[i];
+    const d = Math.hypot(tx - zc.wx, tz - zc.wz);
+    const prox = smooth(THREE.MathUtils.clamp(1 - (d - 16) / 46, 0, 1));  // близко=1, далеко=0
+    const target = zoomFactor * prox;
+    zoneReveal[i] += (target - zoneReveal[i]) * (1 - Math.pow(0.5, dt / 0.18)); // плавно
+  }
+  updateBuildings();
+
+  // маркеры: луч базы ярче издалека, вблизи слабеет (но остаётся для навигации)
+  const beamVis = 1 - smooth(THREE.MathUtils.clamp((zoom01 - 0.4) / 0.4, 0, 1));
   const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
   for (const b of beacons) {
-    if (b.beam) { b.mat.opacity = beamVis * 0.55; b.beam.visible = beamVis > 0.02; }
-    const near = 0.25 + 0.75 * (1 - zoom01);   // вблизи тусклее, издалека ярче
+    if (b.beam) { b.mat.opacity = 0.12 + beamVis * 0.45; }
+    const near = 0.3 + 0.7 * (1 - zoom01);
     let d = (0.35 + 0.25 * (b.base ? pulse : 0.5)) * near;
     if (b.anomaly) d = (0.4 + 0.5 * pulse) * near;
     b.discMat.opacity = d;

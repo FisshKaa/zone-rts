@@ -236,7 +236,7 @@ import { MapControls } from 'three/addons/controls/MapControls.js';
    маяки баз, погода (день/ночь + дождь/туман), HUD-подписи.
    ============================================================ */
 
-const GX = 288, GZ = 640;              // карта ×3 — регионам есть где дышать
+const GX = 288, GZ = 880;              // карта удлинена — все регионы влезают без конфликтов
 const TILE = 1;                        // размер вокселя
 const HALF_X = (GX * TILE) / 2;
 const HALF_Z = (GZ * TILE) / 2;
@@ -256,32 +256,32 @@ const FACTIONS = {
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
-  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.10,  fac:'loners',  base:true,  biome:'swamp' },
-  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.065, fac:'military', base:false, biome:'city' },
-  { en:'JUPITER',       ru:'Юпитер',         nx:0.07, nz:0.155, fac:'mercs',    base:false, biome:'waste' },
-  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.150, fac:'monolith', base:false, biome:'city' },
-  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.170, fac:'monolith', base:false, biome:'city' },
-  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.262, fac:'monolith', base:true,  biome:'waste' },
-  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.292, fac:'monolith', base:false, anomaly:true, biome:'deadforest' },
-  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.312, fac:'neutral',  base:false, biome:'rocky' },
-  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.320, fac:'monolith', base:false, biome:'city' },
-  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.372, fac:'monolith', base:true,  anomaly:true, biome:'swamp' },
-  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.400, fac:'mercs',    base:true,  biome:'city' },
-  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.440, fac:'neutral',  base:false, biome:'waste' },
-  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.548, fac:'neutral',  base:false, biome:'forest' },
-  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.548, fac:'freedom',  base:true,  biome:'forest' },
-  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.580, fac:'csky',     base:true,  biome:'swamp' },
-  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.632, fac:'eco',      base:true,  anomaly:true, biome:'swamp' },
-  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.620, fac:'duty',     base:true,  biome:'city' },
-  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.652, fac:'neutral',  base:false, biome:'waste' },
-  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.680, fac:'bandits',  base:false, biome:'waste' },
-  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.752, fac:'bandits',  base:true,  biome:'rocky' },
-  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.792, fac:'military', base:true,  biome:'waste' },
-  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.782, fac:'loners',   base:false, biome:'waste' },
-  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.820, fac:'neutral',  base:false, biome:'forest' },
-  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.900, fac:'loners',   base:true,  biome:'forest' },
-  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.920, fac:'csky',     base:false, biome:'swamp' },
-  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.920, fac:'neutral',  base:false, biome:'rocky' },
+  { en:'ZATON',         ru:'Затон',          nx:0.11, nz:0.08,  fac:'loners',   base:true,  biome:'swamp'      },
+  { en:'KURCHATOV-37',  ru:'Курчатов-37',    nx:0.90, nz:0.055, fac:'military', base:false, biome:'city'       },
+  { en:'JUPITER',       ru:'Юпитер',         nx:0.14, nz:0.235, fac:'mercs',    base:false, biome:'waste'      },
+  { en:'PRIPYAT',       ru:'Припять',        nx:0.40, nz:0.135, fac:'monolith', base:false, biome:'city'       },
+  { en:'GENERATORS',    ru:'Генераторы',     nx:0.75, nz:0.150, fac:'monolith', base:false, biome:'city'       },
+  { en:'C.N.P.P',       ru:'ЧАЭС',           nx:0.78, nz:0.240, fac:'monolith', base:true,  biome:'waste'      },
+  { en:'RED FOREST',    ru:'Рыжий лес',      nx:0.32, nz:0.268, fac:'monolith', base:false, anomaly:true, biome:'deadforest' },
+  { en:'LABYRINTH',     ru:'Лабиринт',       nx:0.60, nz:0.285, fac:'neutral',  base:false, biome:'rocky'      },
+  { en:'LIMANSK-13',    ru:'Лиманск-13',     nx:0.05, nz:0.295, fac:'monolith', base:false, biome:'city'       },
+  { en:'RADAR',         ru:'Радар',          nx:0.38, nz:0.345, fac:'monolith', base:true,  anomaly:true, biome:'swamp' },
+  { en:'DEAD CITY',     ru:'Мёртвый город',  nx:0.10, nz:0.375, fac:'mercs',    base:true,  biome:'city'       },
+  { en:'DEADLANDS',     ru:'Пустошь',        nx:0.47, nz:0.415, fac:'neutral',  base:false, biome:'waste'      },
+  { en:'CROSSROADS',    ru:'Перекрёсток',    nx:0.30, nz:0.515, fac:'neutral',  base:false, biome:'forest'     },
+  { en:'ARMY WAREHOUSES',ru:'Военные склады',nx:0.65, nz:0.515, fac:'freedom',  base:true,  biome:'forest'     },
+  { en:'MARSH',         ru:'Топи',           nx:0.10, nz:0.550, fac:'csky',     base:true,  biome:'swamp'      },
+  { en:'YANTAR',        ru:'Янтарь',         nx:0.36, nz:0.600, fac:'eco',      base:true,  anomaly:true, biome:'swamp' },
+  { en:'ROSTOK',        ru:'Росток',         nx:0.55, nz:0.590, fac:'duty',     base:true,  biome:'city'       },
+  { en:'ZAPOLYE',       ru:'Заполье',        nx:0.85, nz:0.620, fac:'neutral',  base:false, biome:'waste'      },
+  { en:'FACTORY',       ru:'Завод',          nx:0.08, nz:0.648, fac:'bandits',  base:false, biome:'waste'      },
+  { en:'DARK VALLEY',   ru:'Тёмная долина',  nx:0.82, nz:0.718, fac:'bandits',  base:true,  biome:'rocky'      },
+  { en:'AGROPROM',      ru:'Агропром',       nx:0.35, nz:0.758, fac:'military', base:true,  biome:'waste'      },
+  { en:'GARBAGE',       ru:'Свалка',         nx:0.55, nz:0.748, fac:'loners',   base:false, biome:'waste'      },
+  { en:'WAYSTATION',    ru:'Станция',        nx:0.75, nz:0.788, fac:'neutral',  base:false, biome:'forest'     },
+  { en:'CORDON',        ru:'Кордон',         nx:0.52, nz:0.878, fac:'loners',   base:true,  biome:'forest'     },
+  { en:'GREAT SWAMP',   ru:'Болота',         nx:0.25, nz:0.895, fac:'csky',     base:false, biome:'swamp'      },
+  { en:'DARKSCAPE',     ru:'Тёмная лощина',  nx:0.82, nz:0.895, fac:'neutral',  base:false, biome:'rocky'      },
 ];
 
 // перевод нормированных координат в мир
@@ -378,14 +378,14 @@ app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x2a3327, 0.006);
 
-const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 6000);
-camera.position.set(0, 700, 700);
+const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 1, 7000);
+camera.position.set(0, 900, 900);
 
 const controls = new MapControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 20;
-controls.maxDistance = 1100;
+controls.maxDistance = 1500;
 controls.minPolarAngle = THREE.MathUtils.degToRad(30);
 controls.maxPolarAngle = THREE.MathUtils.degToRad(62);
 controls.target.set(0, 0, 0);
@@ -555,22 +555,41 @@ function genKeypoints(z, zi) {
   return pts;
 }
 
+// точки Юпитера — по спутниковой карте локации «Зов Припяти»
+const JUPITER_KP = [
+  { ru: 'Завод «Юпитер»',         dx:  18, dz:  22, type: 'base',       owner: 'mercs'   },
+  { ru: 'Янов',                   dx:   2, dz: -10, type: 'settlement', owner: 'neutral' },
+  { ru: 'Градирня',               dx:  -2, dz: -24, type: 'settlement', owner: 'neutral' },
+  { ru: 'Копачи',                 dx: -18, dz: -12, type: 'settlement', owner: 'neutral' },
+  { ru: 'ЗРК «Болото»',           dx: -20, dz:   4, type: 'settlement', owner: 'neutral' },
+  { ru: 'Бункер учёных',          dx: -14, dz:  10, type: 'settlement', owner: 'eco'     },
+  { ru: 'КОШ',                    dx:  10, dz:   8, type: 'settlement', owner: 'military'},
+  { ru: 'Слободка',               dx:   6, dz:  14, type: 'settlement', owner: 'neutral' },
+  { ru: 'Карьер',                 dx:  20, dz:  -6, type: 'settlement', owner: 'neutral' },
+  { ru: 'Восточный тоннель',      dx:  26, dz:   6, type: 'chokepoint', owner: 'neutral' },
+  { ru: 'Вентиляционный комплекс',dx:   0, dz:  20, type: 'settlement', owner: 'neutral' },
+  { ru: 'Склад контейнеров',      dx: -26, dz:  22, type: 'settlement', owner: 'bandits' },
+  { ru: 'Аномалия «Пепелище»',    dx: -26, dz: -20, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
+  { ru: 'Аномалия «Битум»',       dx:  14, dz:   2, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
+  { ru: 'Аномальная роща',        dx:  10, dz: -14, type: 'anomaly',    owner: 'neutral', kind: 'electro' },
+  { ru: 'Полуостанок',            dx:   4, dz: -20, type: 'settlement', owner: 'neutral' },
+];
+
 const KEYPOINTS = [];
 const kpByZone = [];
 for (let zi = 0; zi < ZONES.length; zi++) {
   const z = ZONES[zi];
-  // ВРЕМЕННО: точки есть только у Затона (эталон). Остальные регионы
-  // трогать не будем, пока не появятся реальные карты с локации STALKER —
-  // генерировать точки случайными именами по региону нельзя.
-  const raw = z.en === 'ZATON' ? ZATON_KP : [];
+  let raw = [];
+  if (zi === ZATON_IDX)   raw = ZATON_KP;
+  if (zi === JUPITER_IDX) raw = JUPITER_KP;
   const list = raw.map(k => ({ ...k, r: z.en, zi, wx: z.wx + k.dx, wz: z.wz + k.dz }));
   kpByZone[zi] = list;
   KEYPOINTS.push(...list);
 }
-function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner].color; }
+function kpColor(k) { return k.owner === 'neutral' ? 0xbfc4b8 : FACTIONS[k.owner]?.color ?? 0xbfc4b8; }
 
-// Затон: воду теперь делает общая waterLevelAt с болотом Затона
-const ZATON_IDX = ZONES.findIndex(z => z.en === 'ZATON');
+const ZATON_IDX  = ZONES.findIndex(z => z.en === 'ZATON');
+const JUPITER_IDX = ZONES.findIndex(z => z.en === 'JUPITER');
 
 let idx = 0;
 for (let gz = 0; gz < GZ; gz++) {
@@ -1006,7 +1025,29 @@ for (const k of KEYPOINTS) {
   }
 }
 
-const buildings = new THREE.InstancedMesh(voxGeo, voxMat, buildingVox.length);
+/* ---- постройки на точках Юпитера ---- */
+const JUPITER_BUILD = {
+  'Янов':                    (k, rnd) => archVillage(k, JUPITER_IDX, k.gTop, rnd),
+  'Градирня':                (k, rnd) => archFactory(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(0x6a6a6a)),
+  'Копачи':                  (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 3),
+  'ЗРК «Болото»':            (k, rnd) => archMilitary(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.military.color)),
+  'Бункер учёных':           (k, rnd) => archBunker(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.eco.color)),
+  'КОШ':                     (k, rnd) => archMilitary(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.military.color)),
+  'Слободка':                (k, rnd) => archVillage(k, JUPITER_IDX, k.gTop, rnd),
+  'Карьер':                  (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
+  'Восточный тоннель':       (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
+  'Вентиляционный комплекс': (k, rnd) => archFactory(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(0x7a7070)),
+  'Склад контейнеров':       (k, rnd) => archWarehouses(k, JUPITER_IDX, k.gTop, rnd, new THREE.Color(FACTIONS.bandits.color)),
+  'Полуостанок':             (k, rnd) => archRuins(k, JUPITER_IDX, k.gTop, rnd, null, 2),
+};
+for (const k of KEYPOINTS) {
+  if (k.zi !== JUPITER_IDX) continue;
+  const build = JUPITER_BUILD[k.ru];
+  if (!build) continue;
+  const rnd = mulberry32(8000 + Math.round(k.dx * 41) + Math.round(k.dz * 57));
+  curPivotX = k.wx; curPivotZ = k.wz;
+  build(k, rnd);
+}
 buildings.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 buildings.frustumCulled = false;   // иначе меш отсекается по устаревшей bounding sphere
 scene.add(buildings);

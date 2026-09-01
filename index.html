@@ -159,6 +159,20 @@
   }
   @keyframes fadeLog { 0%{opacity:1} 65%{opacity:1} 100%{opacity:0} }
 
+  /* ---- таблица отношений ---- */
+  .rel-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .rel-table th, .rel-table td { padding:5px 8px; text-align:center; border:1px solid rgba(126,154,92,.12); }
+  .rel-table th { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:.08em; color:#7f8a72; background:rgba(0,0,0,.3); }
+  .rel-table td.fac-name { text-align:left; font-weight:600; font-size:13px; white-space:nowrap; }
+  .rel-allied  { background:rgba(60,180,80,.20);  color:#7de08a; }
+  .rel-friendly{ background:rgba(60,140,220,.15); color:#7ab8e8; }
+  .rel-neutral { background:rgba(120,120,120,.10);color:#9a9a9a; }
+  .rel-hostile { background:rgba(220,80,50,.18);  color:#e87a60; }
+  .rel-war     { background:rgba(200,20,20,.25);  color:#ff5555; font-weight:700; }
+  .rel-self    { background:rgba(185,209,74,.08); color:#b9d14a; }
+  .rel-legend  { display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; }
+  .rel-legend span { font-family:'Share Tech Mono',monospace; font-size:10px; padding:2px 8px; border-radius:2px; }
+
   /* map labels */
   #labels { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; }
   .lbl {
@@ -256,6 +270,27 @@
     <div class="readout"><span class="k">АНОМАЛИИ</span><span class="v" id="resAnom">—</span></div>
     <button id="weatherBtn">СМЕНИТЬ ПОГОДУ</button>
     <button id="stormBtn" style="margin-top:4px;width:100%;background:rgba(180,60,20,.18);border-color:rgba(220,80,20,.4);color:#ff8844;">⚠ ВЫБРОС</button>
+    <button id="relBtn" style="margin-top:4px;width:100%;background:rgba(60,90,180,.18);border-color:rgba(80,120,220,.4);color:#88aaff;">⚖ ОТНОШЕНИЯ</button>
+  </div>
+</div>
+
+<!-- Модальное окно отношений -->
+<div id="relModal" style="
+  display:none; position:fixed; inset:0; z-index:60;
+  background:rgba(5,7,10,.88); backdrop-filter:blur(4px);
+  align-items:center; justify-content:center;
+">
+  <div style="
+    background:rgba(11,15,10,.96); border:1px solid rgba(126,154,92,.3);
+    box-shadow:0 20px 60px rgba(0,0,0,.7); max-width:680px; width:90%;
+    max-height:85vh; overflow-y:auto; padding:20px 24px;
+    font-family:'Rajdhani',sans-serif;
+  ">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:700;letter-spacing:.2em;color:#d7e2c8">ОТНОШЕНИЯ ГРУППИРОВОК</div>
+      <button id="relClose" style="background:none;border:none;color:#7f8a72;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="relContent"></div>
   </div>
 </div>
 
@@ -321,6 +356,31 @@ const FACTIONS = {
   csky:     { name: 'Чистое небо', color: 0x86b8d6 },
   renegade: { name: 'Ренегаты',   color: 0xb04a8a },
 };
+
+/* ---- ОТНОШЕНИЯ ГРУППИРОВОК ----
+   allied=союз, friendly=дружба, neutral=нейтралитет,
+   hostile=враждебность, war=война
+   Матрица симметрична.
+---------------------------------------------------------------- */
+// REL[a][b] — отношение a к b
+const REL_LEVELS = { allied:'allied', friendly:'friendly', neutral:'neutral', hostile:'hostile', war:'war' };
+const { allied, friendly, neutral, hostile, war } = REL_LEVELS;
+
+const RELATIONS = {
+  loners:   { loners:'self', duty:friendly, freedom:neutral,  bandits:hostile,  mercs:neutral,  military:hostile, monolith:war,     eco:friendly, csky:friendly, renegade:war     },
+  duty:     { loners:friendly, duty:'self', freedom:war,      bandits:war,      mercs:hostile,  military:friendly,monolith:war,     eco:neutral,  csky:neutral,  renegade:war     },
+  freedom:  { loners:neutral, duty:war,     freedom:'self',   bandits:hostile,  mercs:neutral,  military:hostile, monolith:war,     eco:friendly, csky:hostile,  renegade:hostile },
+  bandits:  { loners:hostile, duty:war,     freedom:hostile,  bandits:'self',   mercs:friendly, military:war,     monolith:hostile, eco:hostile,  csky:war,      renegade:allied  },
+  mercs:    { loners:neutral, duty:hostile, freedom:neutral,  bandits:friendly, mercs:'self',   military:neutral, monolith:hostile, eco:neutral,  csky:hostile,  renegade:neutral },
+  military: { loners:hostile, duty:friendly,freedom:hostile,  bandits:war,      mercs:neutral,  military:'self',  monolith:war,     eco:friendly, csky:neutral,  renegade:war     },
+  monolith: { loners:war,     duty:war,     freedom:war,      bandits:hostile,  mercs:hostile,  military:war,     monolith:'self',  eco:war,      csky:war,      renegade:hostile },
+  eco:      { loners:friendly,duty:neutral, freedom:friendly, bandits:hostile,  mercs:neutral,  military:friendly,monolith:war,     eco:'self',   csky:friendly, renegade:hostile },
+  csky:     { loners:friendly,duty:neutral, freedom:hostile,  bandits:war,      mercs:hostile,  military:neutral, monolith:war,     eco:friendly, csky:'self',   renegade:war     },
+  renegade: { loners:war,     duty:war,     freedom:hostile,  bandits:allied,   mercs:neutral,  military:war,     monolith:hostile, eco:hostile,  csky:war,      renegade:'self'  },
+};
+
+const REL_LABEL = { allied:'СОЮЗ', friendly:'ДРУЖБА', neutral:'НЕЙТРАЛ', hostile:'ВРАЖДА', war:'ВОЙНА', self:'—' };
+const REL_CLASS = { allied:'rel-allied', friendly:'rel-friendly', neutral:'rel-neutral', hostile:'rel-hostile', war:'rel-war', self:'rel-self' };
 
 /* ---- зоны карты: nx/nz — нормированные координаты (0..1) со скрина ---- */
 const ZONES = [
@@ -3003,6 +3063,52 @@ document.getElementById('stormBtn').addEventListener('click', () => {
   document.getElementById('wx').textContent = WX.storm.label;
   triggerEmission();
 });
+
+// ---- Модальное окно отношений ----
+const relModal   = document.getElementById('relModal');
+const relContent = document.getElementById('relContent');
+document.getElementById('relBtn').addEventListener('click', () => {
+  renderRelations();
+  relModal.style.display = 'flex';
+});
+document.getElementById('relClose').addEventListener('click', () => {
+  relModal.style.display = 'none';
+});
+relModal.addEventListener('click', e => { if (e.target === relModal) relModal.style.display = 'none'; });
+
+function renderRelations() {
+  const facs = Object.keys(FACTIONS);
+  let html = '<table class="rel-table"><thead><tr><th></th>';
+  facs.forEach(b => {
+    const f = FACTIONS[b];
+    const col = '#' + f.color.toString(16).padStart(6,'0');
+    html += `<th style="color:${col}">${f.name}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  facs.forEach(a => {
+    const fa = FACTIONS[a];
+    const colA = '#' + fa.color.toString(16).padStart(6,'0');
+    html += `<tr><td class="fac-name" style="color:${colA}">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${colA};margin-right:6px;box-shadow:0 0 5px ${colA}"></span>
+      ${fa.name}</td>`;
+    facs.forEach(b => {
+      const rel = RELATIONS[a]?.[b] ?? 'neutral';
+      html += `<td class="${REL_CLASS[rel]}">${REL_LABEL[rel]}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  html += `<div class="rel-legend">
+    <span class="rel-allied">■ СОЮЗ</span>
+    <span class="rel-friendly">■ ДРУЖБА</span>
+    <span class="rel-neutral">■ НЕЙТРАЛ</span>
+    <span class="rel-hostile">■ ВРАЖДА</span>
+    <span class="rel-war">■ ВОЙНА</span>
+  </div>`;
+  relContent.innerHTML = html;
+}
 
 // цвета неба по времени суток (ключевые кадры)
 const SKY = [

@@ -2657,6 +2657,23 @@ function tickUnit(u, dt2) {
 }
 
 function tickCollector(u, dt2) {
+  // Убегаем от врагов рядом
+  const threat = allUnits.find(v => {
+    if (v.faction === u.faction) return false;
+    if (dist2d(u.x,u.z,v.x,v.z) > 20) return false;
+    const rel = getRelation(u.faction, v.faction);
+    return rel === 'hostile' || rel === 'war';
+  });
+  if (threat) {
+    // Убегаем от угрозы
+    const dx = u.x - threat.x, dz = u.z - threat.z;
+    const d = Math.hypot(dx,dz) || 1;
+    u.x += (dx/d) * u.speed * dt2 * 1.5; // быстрее обычного
+    u.z += (dz/d) * u.speed * dt2 * 1.5;
+    u.state = 'idle'; u.timer = 0; // сбрасываем задачу
+    if (u.carrying) u.carrying = false; // роняем артефакт
+    return;
+  }
   const base = getBase(u.faction);
   if (!base) return;
 
@@ -2698,7 +2715,58 @@ function tickCollector(u, dt2) {
   }
 }
 
+// Радиус видимости юнита (туман войны)
+const UNIT_SIGHT = { collector: 35, patrol: 55, soldier: 50, sniper: 70, trader: 30 };
+
+// Проверяем есть ли враг в зоне видимости и атакуем/преследуем
+function combatTick(u, dt2) {
+  const sight = UNIT_SIGHT[u.type] || 45;
+
+  // Ищем ближайшего врага в зоне видимости
+  let closest = null, closestD = Infinity;
+  for (const v of allUnits) {
+    if (v.faction === u.faction) continue;
+    const rel = getRelation(u.faction, v.faction);
+    if (rel !== 'hostile' && rel !== 'war') continue;
+    const d = dist2d(u.x, u.z, v.x, v.z);
+    if (d < sight && d < closestD) { closestD = d; closest = v; }
+  }
+  if (!closest) return false;
+
+  // Враг обнаружен — регистрируем угрозу
+  registerThreat(u.faction, closest.faction, null);
+
+  // Идём к врагу
+  u.targetPos = { x: closest.x, z: closest.z };
+  moveUnit(u, dt2);
+
+  // Если в зоне удара — бьём
+  const meleeDist = u.type === 'sniper' ? 45 : 6;
+  if (closestD < meleeDist) {
+    const dmg = u.type === 'sniper'  ? (20 + Math.random()*15) * dt2 * 4 :
+                u.type === 'soldier' ? (18 + Math.random()*10) * dt2 * 4 :
+                                       (10 + Math.random()*5)  * dt2 * 4;
+    closest.hp -= dmg;
+    if (u.type !== 'sniper') u.hp -= dmg * 0.4; // ближний бой — оба получают урон
+    registerThreat(closest.faction, u.faction, null);
+
+    if (closest.hp <= 0) {
+      const uname = FACTIONS[u.faction]?.name || u.faction;
+      const vname = FACTIONS[closest.faction]?.name || closest.faction;
+      const vtype = UNIT_TYPES[closest.type]?.name || closest.type;
+      logEvent(`⚔ ${uname} уничтожил ${vtype} (${vname})`,
+        '#' + (FACTIONS[u.faction]?.color ?? 0xaaaaaa).toString(16).padStart(6,'0'));
+      removeUnit(closest);
+    }
+    if (u.hp <= 0) { removeUnit(u); return true; }
+  }
+  return true; // занят боем
+}
+
 function tickPatrol(u, dt2) {
+  // Сначала — реагируем на врагов рядом (включая собирателей)
+  if (combatTick(u, dt2)) return;
+
   if (u.state === 'idle' || u.timer > 12) {
     const isMonolith = u.faction === 'monolith';
     const limanskOnly = !!u.limanskOnly;
@@ -2762,6 +2830,8 @@ function tickPatrol(u, dt2) {
 }
 
 function tickSoldier(u, dt2) {
+  // Атакуем врагов рядом (в т.ч. собирателей) — приоритет над всем
+  if (combatTick(u, dt2)) return;
   if (u.state === 'idle' || u.timer > 15) {
     const isMonolith = u.faction === 'monolith';
     const limanskOnly = !!u.limanskOnly;
@@ -2816,6 +2886,9 @@ function tickSoldier(u, dt2) {
         for (const d of defenders) {
           d.hp -= 15 + Math.random() * 10;
           u.hp -= 8 + Math.random() * 8;
+          // Регистрируем угрозу — группировка-жертва запомнит кто её атаковал
+          registerThreat(d.faction, u.faction, u.target);
+          registerThreat(u.faction, d.faction, u.target);
           if (d.hp <= 0) {
             logEvent(`⚔ ${FACTIONS[u.faction].name} уничтожил бойца ${FACTIONS[d.faction].name}!`, '#d3453a');
             removeUnit(d);
@@ -2843,53 +2916,69 @@ function tickSoldier(u, dt2) {
 }
 
 function tickSniper(u, dt2) {
-  // Стоит на ближайшем KP группировки и атакует врагов в радиусе 40
   if (u.state === 'idle') {
-    const myKP = KEYPOINTS.filter(k => k.owner === u.faction);
-    if (myKP.length) {
-      const nearest = myKP.reduce((a,b) => dist2d(u.x,u.z,a.wx,a.wz) < dist2d(u.x,u.z,b.wx,b.wz) ? a : b);
-      u.targetPos = { x: nearest.wx, z: nearest.wz };
+    const threat = THREAT_MEMORY[u.faction];
+    const underThreat = threat && (performance.now() - threat.time) < 20000;
+    const myKPs = KEYPOINTS.filter(k => k.owner === u.faction);
+    let dest;
+    if (underThreat && threat.kp) {
+      dest = threat.kp;
+    } else if (myKPs.length) {
+      dest = myKPs[Math.floor(Math.random() * myKPs.length)];
+    }
+    if (dest) {
+      u.targetPos = { x: dest.wx + (Math.random()-0.5)*8, z: dest.wz + (Math.random()-0.5)*8 };
       u.state = 'moving';
     }
   } else if (u.state === 'moving') {
     const arrived = moveUnit(u, dt2);
     if (arrived) u.state = 'guarding';
   } else if (u.state === 'guarding') {
-    // каждые 2 сек сканируем врагов
     if (u.timer > 2) {
       u.timer = 0;
-      const enemy = allUnits.find(v =>
-        v.faction !== u.faction && dist2d(u.x,u.z,v.x,v.z) < 45
-      );
+      const enemy = allUnits.find(v => {
+        if (v.faction === u.faction) return false;
+        if (dist2d(u.x,u.z,v.x,v.z) > 45) return false;
+        const rel = getRelation(u.faction, v.faction);
+        return rel === 'hostile' || rel === 'war';
+      });
       if (enemy) {
         enemy.hp -= 20 + Math.random() * 15;
+        registerThreat(enemy.faction, u.faction, null);
         if (enemy.hp <= 0) {
-          logEvent(`🎯 Снайпер ${FACTIONS[u.faction].name} устранил юнита!`, '#c46a3a');
+          logEvent(`🎯 Снайпер ${FACTIONS[u.faction]?.name} устранил юнита ${FACTIONS[enemy.faction]?.name}!`, '#c46a3a');
           removeUnit(enemy);
         }
       }
     }
-    // если KP захватили — ищем новую позицию
     const myKPs = KEYPOINTS.filter(k => k.owner === u.faction);
-    if (!myKPs.some(k => dist2d(u.x,u.z,k.wx,k.wz) < 10)) u.state = 'idle';
+    if (!myKPs.some(k => dist2d(u.x,u.z,k.wx,k.wz) < 12) || u.timer > 30) {
+      u.state = 'idle'; u.timer = 0;
+    }
   }
 }
 
 function tickTrader(u, dt2) {
   if (u.state === 'idle' || u.timer > 25) {
-    // торговец ходит между базами разных группировок
-    const bases = KEYPOINTS.filter(k => k.type === 'base' && k.owner !== 'neutral');
-    if (bases.length >= 2) {
-      const dest = bases.filter(b => dist2d(u.x,u.z,b.wx,b.wz) > 40);
-      if (dest.length) {
-        u.target = rndFrom(dest);
-        u.targetPos = { x: u.target.wx, z: u.target.wz };
-        u.state = 'trading'; u.timer = 0;
-      }
+    // Торговец идёт к базам нейтралов, союзников или дружественных — не к врагам
+    const bases = KEYPOINTS.filter(k => {
+      if (k.type !== 'base' || k.owner === u.faction) return false;
+      if (dist2d(u.x,u.z,k.wx,k.wz) < 40) return false; // не стоять на месте
+      const rel = getRelation(u.faction, k.owner);
+      return k.owner === 'neutral' || rel === 'allied' || rel === 'friendly' || rel === 'neutral';
+    });
+    if (bases.length) {
+      u.target = bases[Math.floor(Math.random() * Math.min(3, bases.length))];
+      u.targetPos = { x: u.target.wx + (Math.random()-0.5)*10, z: u.target.wz + (Math.random()-0.5)*10 };
+      u.state = 'trading'; u.timer = 0;
     }
   } else if (u.state === 'trading') {
     const arrived = moveUnit(u, dt2);
     if (arrived) {
+      // Доход зависит от отношений: союзник даёт больше
+      const rel = u.target ? getRelation(u.faction, u.target.owner) : 'neutral';
+      const bonus = rel === 'allied' ? 20 : rel === 'friendly' ? 15 : 10;
+      AI_POINTS[u.faction] = (AI_POINTS[u.faction] || 0) + bonus;
       u.state = 'idle'; u.timer = 0;
     }
   }
@@ -3002,12 +3091,77 @@ function tickPassiveIncome(dt2) {
   }
 }
 
+// ---- Характеры фракций — пропорции типов юнитов ----
+// [collector, patrol, soldier, sniper, trader]
+const FACTION_DOCTRINE = {
+  loners:   [0.35, 0.30, 0.20, 0.10, 0.05], // много собирателей, сбалансированы
+  duty:     [0.05, 0.20, 0.45, 0.25, 0.05], // военная фракция — солдаты и снайперы
+  freedom:  [0.15, 0.35, 0.30, 0.15, 0.05], // мобильные, много патрулей
+  bandits:  [0.10, 0.35, 0.35, 0.10, 0.10], // агрессивные, патрули-рейдеры
+  mercs:    [0.10, 0.20, 0.30, 0.35, 0.05], // профессионалы, снайперы
+  military: [0.05, 0.20, 0.50, 0.20, 0.05], // чистая военная машина
+  monolith: [0.00, 0.25, 0.50, 0.25, 0.00], // не собирают артефакты, воины
+  eco:      [0.50, 0.20, 0.10, 0.10, 0.10], // учёные — максимум сборщиков
+  csky:     [0.20, 0.35, 0.25, 0.15, 0.05], // разведчики, патрули
+  renegade: [0.10, 0.40, 0.30, 0.10, 0.10], // хаотичные рейдеры
+};
+
+// ---- Память об угрозах ----
+// Если фракцию атаковали — она помнит это и реагирует
+const THREAT_MEMORY = {}; // { [fac]: { attacker, time, kp } }
+function registerThreat(victim, attacker, kp) {
+  if (victim === attacker) return;
+  THREAT_MEMORY[victim] = { attacker, time: performance.now(), kp };
+}
+
+// ---- Умный выбор типа юнита ----
+function choosUnitType(fac) {
+  const doc = FACTION_DOCTRINE[fac] || [0.20, 0.25, 0.30, 0.20, 0.05];
+  const myKPCount = KEYPOINTS.filter(k => k.owner === fac).length;
+  const myUnits   = allUnits.filter(u => u.faction === fac);
+  const threat    = THREAT_MEMORY[fac];
+  const underAttack = threat && (performance.now() - threat.time) < 30000;
+
+  // Если атакуют — спавним солдат/снайперов
+  if (underAttack) {
+    const r = Math.random();
+    return r < 0.5 ? 'soldier' : 'sniper';
+  }
+
+  // Если нет KP — только патрули
+  if (myKPCount === 0) return 'patrol';
+
+  // Балансируем состав: смотрим чего не хватает
+  const counts = {};
+  const types = ['collector','patrol','soldier','sniper','trader'];
+  types.forEach(t => counts[t] = myUnits.filter(u => u.type === t).length);
+  const total = myUnits.length || 1;
+
+  // Находим тип с наибольшим дефицитом относительно доктрины
+  let bestType = 'patrol', bestDeficit = -1;
+  types.forEach((t, i) => {
+    const target = doc[i];
+    if (target === 0) return; // фракция не использует этот тип
+    const actual = counts[t] / total;
+    const deficit = target - actual;
+    if (deficit > bestDeficit) { bestDeficit = deficit; bestType = t; }
+  });
+
+  // Небольшая случайность чтобы не было предсказуемо
+  if (Math.random() < 0.15) {
+    const available = types.filter((t,i) => doc[i] > 0);
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  return bestType;
+}
+
 function tickAI(dt2) {
   Object.keys(FACTIONS).forEach(fac => {
     if (fac === myFaction) return;
 
     let spawnBase = null;
-    let limanskSpawn = false;
+    let expensiveSpawn = false;
 
     if (fac === 'monolith') {
       const mainKPs = KEYPOINTS.filter(k => {
@@ -3020,34 +3174,22 @@ function tickAI(dt2) {
         const z = ZONES[k.zi];
         return z && z.en === 'LIMANSK-13';
       });
-      if (mainKPs.length) {
-        spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)];
-        limanskSpawn = false;
-      } else if (limanskKPs.length) {
-        spawnBase = limanskKPs[0];
-        limanskSpawn = true;
-      }
+      if (mainKPs.length) { spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)]; }
+      else if (limanskKPs.length) { spawnBase = limanskKPs[0]; expensiveSpawn = true; }
 
     } else if (fac === 'loners') {
-      // Основной спавн — Кордон (обычная цена)
       const mainKPs = KEYPOINTS.filter(k => {
         if (k.owner !== 'loners' || k.type !== 'base') return false;
         const z = ZONES[k.zi];
         return z && LONERS_MAIN_SPAWN.has(z.en);
       });
-      // Затон и Юпитер — ×3
       const extraKPs = KEYPOINTS.filter(k => {
         if (k.owner !== 'loners' || k.type !== 'base') return false;
         const z = ZONES[k.zi];
         return z && LONERS_EXTRA_SPAWN.has(z.en);
       });
-      if (mainKPs.length) {
-        spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)];
-        limanskSpawn = false;
-      } else if (extraKPs.length) {
-        spawnBase = extraKPs[Math.floor(Math.random() * extraKPs.length)];
-        limanskSpawn = true; // флаг = дорогой спавн (×3)
-      }
+      if (mainKPs.length) { spawnBase = mainKPs[Math.floor(Math.random() * mainKPs.length)]; }
+      else if (extraKPs.length) { spawnBase = extraKPs[Math.floor(Math.random() * extraKPs.length)]; expensiveSpawn = true; }
 
     } else {
       spawnBase = getBase(fac);
@@ -3055,24 +3197,16 @@ function tickAI(dt2) {
 
     if (!spawnBase || AI_POINTS[fac] < 20) return;
 
-    const myKPCount = KEYPOINTS.filter(k=>k.owner===fac).length;
-    let type;
-    const r = Math.random();
-    if (myKPCount === 0) type = 'patrol';
-    else if (r < 0.30) type = 'collector';
-    else if (r < 0.55) type = 'patrol';
-    else if (r < 0.80) type = 'soldier';
-    else type = 'sniper';
-
+    const type = choosUnitType(fac);
     const baseCost = UNIT_TYPES[type].cost;
-    const cost = limanskSpawn ? baseCost * 3 : baseCost;
+    const cost = expensiveSpawn ? baseCost * 3 : baseCost;
 
-    if (AI_POINTS[fac] >= cost) {
-      AI_POINTS[fac] -= cost;
-      const u = spawnUnit(type, fac, spawnBase.wx + (Math.random()-0.5)*8, spawnBase.wz + (Math.random()-0.5)*8);
-      // Юниты из Лиманска не уходят дальше него
-      if (u && limanskSpawn) u.limanskOnly = true;
-    }
+    // Копим на дорогие юниты — не тратим на дешёвые если ждём крупного
+    if (AI_POINTS[fac] < cost) return;
+
+    AI_POINTS[fac] -= cost;
+    const u = spawnUnit(type, fac, spawnBase.wx + (Math.random()-0.5)*8, spawnBase.wz + (Math.random()-0.5)*8);
+    if (u && expensiveSpawn) u.limanskOnly = true;
   });
 }
 
@@ -3169,34 +3303,54 @@ function tickGame(dt2, now) {
   for (const u of [...allUnits]) tickUnit(u, dt2);
 
   // тик ИИ-закупок раз в 20 сек
-  if (now - lastAITick > 20000) { tickAI(dt2); lastAITick = now; }
+  if (now - lastAITick > 8000) { tickAI(dt2); lastAITick = now; }
 
   // мутанты
   tickMutants(dt2);
 
   // обновляем маркеры юнитов на экране
+  // Туман войны: видим юнита если:
+  //   а) он наш (всегда видим)
+  //   б) он в радиусе видимости хотя бы одного нашего юнита
+  //   в) нет выбранной фракции — видим всех (режим наблюдателя)
+  const visibleUnits = new Set();
+  if (!myFaction) {
+    allUnits.forEach(u => visibleUnits.add(u.id));
+  } else {
+    const myUnits = allUnits.filter(u => u.faction === myFaction);
+    for (const u of allUnits) {
+      if (u.faction === myFaction) { visibleUnits.add(u.id); continue; }
+      // Проверяем видит ли хоть один наш юнит этого врага
+      for (const mine of myUnits) {
+        const sight = UNIT_SIGHT[mine.type] || 45;
+        if (dist2d(mine.x, mine.z, u.x, u.z) < sight) {
+          visibleUnits.add(u.id); break;
+        }
+      }
+    }
+  }
+
   const tmpVec = new THREE.Vector3();
   for (const u of allUnits) {
-    const col = '#'+((FACTIONS[u.faction]?.color)??0xaaaaaa).toString(16).padStart(6,'0');
     const el = getOrCreateMarker(u.id, false);
+    if (!visibleUnits.has(u.id)) { el.style.display = 'none'; continue; }
+    const col = '#'+((FACTIONS[u.faction]?.color)??0xaaaaaa).toString(16).padStart(6,'0');
     tmpVec.set(u.x, topAtWorld(u.x,u.z)+2, u.z).project(camera);
     if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
-      const sx = (tmpVec.x*0.5+0.5)*innerWidth;
-      const sy = (-tmpVec.y*0.5+0.5)*innerHeight;
       el.style.display = 'flex';
-      el.style.left = sx + 'px';
-      el.style.top  = sy + 'px';
+      el.style.left = ((tmpVec.x*0.5+0.5)*innerWidth)+'px';
+      el.style.top  = ((-tmpVec.y*0.5+0.5)*innerHeight)+'px';
       const icon  = UNIT_ICONS[u.type] || '?';
       const fname = FACTIONS[u.faction]?.name || u.faction;
       const state = u.state === 'collecting' ? 'сбор' : u.state === 'returning' ? 'база' :
                     u.state === 'capturing'  ? 'захват' : u.state === 'guarding' ? 'охрана' :
-                    u.state === 'trading'    ? 'торг' : u.state === 'moving' ? '→' : '…';
+                    u.state === 'trading'    ? 'торг'  : u.state === 'moving'   ? '→'     : '…';
       updateMarker(el, col, icon, fname.slice(0,6)+' '+state, u.hp/u.maxHp);
     } else {
       el.style.display = 'none';
     }
   }
-  // мутанты
+  // мутанты — всегда видны (аномальные существа)
   for (const m of mutants) {
     const el = getOrCreateMarker('m'+m.id, true);
     tmpVec.set(m.x, topAtWorld(m.x,m.z)+2, m.z).project(camera);

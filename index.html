@@ -368,7 +368,7 @@ const FACTIONS = {
 const REL_LEVELS = { allied:'allied', friendly:'friendly', neutral:'neutral', hostile:'hostile', war:'war' };
 const { allied, friendly, neutral, hostile, war } = REL_LEVELS;
 
-const RELATIONS = {
+const RELATIONS_BASE = {
   loners:   { loners:'self', duty:friendly, freedom:neutral,  bandits:hostile,  mercs:neutral,  military:hostile, monolith:war,     eco:friendly, csky:friendly, renegade:war     },
   duty:     { loners:friendly, duty:'self', freedom:war,      bandits:war,      mercs:hostile,  military:friendly,monolith:war,     eco:neutral,  csky:neutral,  renegade:war     },
   freedom:  { loners:neutral, duty:war,     freedom:'self',   bandits:hostile,  mercs:neutral,  military:hostile, monolith:war,     eco:friendly, csky:hostile,  renegade:hostile },
@@ -380,6 +380,24 @@ const RELATIONS = {
   csky:     { loners:friendly,duty:neutral, freedom:hostile,  bandits:war,      mercs:hostile,  military:neutral, monolith:war,     eco:friendly, csky:'self',   renegade:war     },
   renegade: { loners:war,     duty:war,     freedom:hostile,  bandits:allied,   mercs:neutral,  military:war,     monolith:hostile, eco:hostile,  csky:war,      renegade:'self'  },
 };
+const RELATIONS = {};
+for (const a of Object.keys(RELATIONS_BASE)) RELATIONS[a] = { ...RELATIONS_BASE[a] };
+
+function getRelation(a, b) { return RELATIONS[a]?.[b] ?? 'neutral'; }
+
+const REL_ORDER = ['allied','friendly','neutral','hostile','war'];
+function worsenRelation(a, b) {
+  if (!a || !b || a === b) return;
+  const cur = getRelation(a, b);
+  if (cur === 'self' || cur === 'war') return;
+  const idx = REL_ORDER.indexOf(cur);
+  if (idx < 0) return;
+  const next = REL_ORDER[Math.min(idx + 1, REL_ORDER.length - 1)];
+  RELATIONS[a][b] = next; RELATIONS[b][a] = next;
+  const an = FACTIONS[a]?.name||a, bn = FACTIONS[b]?.name||b;
+  logEvent(`⚠ ${an} и ${bn}: ${REL_LABEL[next]}`, '#c46a3a');
+  if (document.getElementById('relModal')?.style.display === 'flex') renderRelations();
+}
 
 const REL_LABEL = { allied:'СОЮЗ', friendly:'ДРУЖБА', neutral:'НЕЙТРАЛ', hostile:'ВРАЖДА', war:'ВОЙНА', self:'—' };
 const REL_CLASS = { allied:'rel-allied', friendly:'rel-friendly', neutral:'rel-neutral', hostile:'rel-hostile', war:'rel-war', self:'rel-self' };
@@ -646,7 +664,7 @@ function pickName(rnd, arr, used) {
 
 // вручную снятые с карты точки Затона (эталонный регион, как на референсе)
 const ZATON_KP = [
-  { ru: 'Скадовск',            dx:  14.4, dz:-22.4, type: 'base',       owner: 'loners'  },
+  { ru: 'Скадовск',            dx:  14.4, dz:-22.4, type: 'settlement', owner: 'loners'  },
   { ru: 'Лесопилка',           dx:-31.2, dz:-36.8, type: 'settlement', owner: 'neutral' },
   { ru: 'Топь',                dx:-40.4, dz:-20.0, type: 'anomaly',    owner: 'neutral', kind: 'grav'   },
   { ru: 'ВНЗ «Круг»',          dx:-38.0, dz: -5.6, type: 'settlement', owner: 'neutral' },
@@ -707,7 +725,7 @@ function genKeypoints(z, zi) {
 
 // точки Юпитера — по спутниковой карте локации «Зов Припяти»
 const JUPITER_KP = [
-  { ru: 'Завод «Юпитер»',         dx:  18, dz:  22, type: 'base',       owner: 'mercs'   },
+  { ru: 'Завод «Юпитер»',         dx:  18, dz:  22, type: 'settlement', owner: 'mercs'   },
   { ru: 'Янов',                   dx:   2, dz: -10, type: 'settlement', owner: 'neutral' },
   { ru: 'Градирня',               dx:  -2, dz: -24, type: 'settlement', owner: 'neutral' },
   { ru: 'Копачи',                 dx: -18, dz: -12, type: 'settlement', owner: 'neutral' },
@@ -735,7 +753,7 @@ const CORDON_KP = [
   { ru: 'Туннель под ж/д',       dx:   2, dz:  16, type: 'chokepoint', owner: 'neutral'  },
   { ru: 'Аномалия «Воронка»',    dx:  -4, dz:  12, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
   { ru: 'Аномалия «Плешь»',      dx:  18, dz:  -2, type: 'anomaly',    owner: 'neutral', kind: 'thermal' },
-  { ru: 'Блокпост сталкеров',    dx:  -8, dz:  -16, type: 'settlement', owner: 'loners'  },
+  { ru: 'Блокпост сталкеров',    dx:  -8, dz:  -16, type: 'base',       owner: 'loners'  },
 ];
 
 // ---- СВАЛКА (Shadow of Chernobyl) ----
@@ -744,7 +762,7 @@ const GARBAGE_KP = [
   { ru: 'Завод по переработке',  dx: -10, dz:  -4, type: 'settlement', owner: 'bandits'  },
   { ru: 'Лагерь Сталкеров',      dx:   2, dz:  12, type: 'settlement', owner: 'loners'   },
   { ru: 'Брошенный лагерь',      dx: -14, dz:  10, type: 'settlement', owner: 'neutral'  },
-  { ru: 'Центральный склад',      dx:  12, dz:   4, type: 'base',       owner: 'bandits'  },
+  { ru: 'Центральный склад',      dx:  12, dz:   4, type: 'settlement', owner: 'neutral'  },
   { ru: 'Мусорный курган',        dx:   0, dz:  -14, type: 'settlement', owner: 'neutral' },
   { ru: 'Аномалия «Кисель»',     dx:  -6, dz:  -18, type: 'anomaly',   owner: 'neutral', kind: 'chem'    },
   { ru: 'Аномалия «Карусель»',   dx:  16, dz: -10, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
@@ -768,7 +786,7 @@ const DARK_VALLEY_KP = [
   { ru: 'База «Свободы»',        dx:  -8, dz:  -6, type: 'base',       owner: 'freedom'  },
   { ru: 'Лаборатория X-18',      dx:   8, dz:   8, type: 'settlement', owner: 'neutral'  },
   { ru: 'Завод им. Скадовского', dx:  14, dz:  -4, type: 'settlement', owner: 'bandits'  },
-  { ru: 'Лагерь бандитов',       dx:   0, dz: -14, type: 'settlement', owner: 'bandits'  },
+  { ru: 'Лагерь бандитов',       dx:   0, dz: -14, type: 'base',       owner: 'bandits'  },
   { ru: 'Северный блокпост',     dx: -16, dz:   8, type: 'chokepoint', owner: 'neutral'  },
   { ru: 'Аномалия «Вихрь»',      dx:  -2, dz:  14, type: 'anomaly',    owner: 'neutral', kind: 'grav'    },
   { ru: 'Аномалия «Студень»',    dx:  18, dz:   6, type: 'anomaly',    owner: 'neutral', kind: 'chem'    },
@@ -1032,6 +1050,12 @@ const MONOLITH_MAX_ZONES = MONOLITH_ZONES;
 const LONERS_MAIN_SPAWN  = new Set(['CORDON']);
 const LONERS_EXTRA_SPAWN = new Set(['ZATON', 'JUPITER']); // ×3
 
+// Главные базы по лору — потеря = уничтожение группировки
+const FACTION_HOME = {
+  loners:'CORDON', duty:'ROSTOK', freedom:'ARMY WAREHOUSES',
+  bandits:'DARK VALLEY', mercs:'DEAD CITY', military:'KURCHATOV-37',
+  monolith:'C.N.P.P', eco:'YANTAR', csky:'MARSH', renegade:'GREAT SWAMP',
+};
 for (const k of KEYPOINTS) {
   const zone = ZONES[k.zi];
   if (!zone) continue;
@@ -2683,7 +2707,12 @@ function tickPatrol(u, dt2) {
     // Берём всех кандидатов и перемешиваем — не идут к одному
     let candidates = [
       ...getNeutralKPs(),
-      ...getEnemyKPs(u.faction).filter(k => dist2d(u.x,u.z,k.wx,k.wz) < 150),
+      // Атакуем врагов (hostile/war) и нейтралов, дружественных/союзников — пропускаем
+      ...KEYPOINTS.filter(k => {
+        if (k.owner === u.faction || k.owner === 'neutral') return false;
+        const rel = getRelation(u.faction, k.owner);
+        return rel === 'hostile' || rel === 'war';
+      }).filter(k => dist2d(u.x,u.z,k.wx,k.wz) < 150),
       // иногда патрулируем и свои занятые KP
       ...KEYPOINTS.filter(k => k.owner === u.faction && Math.random() < 0.2),
     ].filter(k => {
@@ -2745,11 +2774,17 @@ function tickSoldier(u, dt2) {
       return true;
     };
 
-    // Ищем разведанный KP
-    const scoutedKP = KEYPOINTS.find(k =>
-      k.scouted === u.faction && k.owner !== u.faction &&
-      dist2d(u.x,u.z,k.wx,k.wz) < 250 && filterZone(k)
-    );
+    // Ищем разведанный KP — только у врагов или нейтральный
+    const scoutedKP = KEYPOINTS.find(k => {
+      if (k.scouted !== u.faction || k.owner === u.faction) return false;
+      if (dist2d(u.x,u.z,k.wx,k.wz) > 250) return false;
+      // Не атакуем дружественных и союзников
+      if (k.owner !== 'neutral') {
+        const rel = getRelation(u.faction, k.owner);
+        if (rel === 'allied' || rel === 'friendly') return false;
+      }
+      return filterZone(k);
+    });
 
     if (scoutedKP) {
       u.target = scoutedKP;
@@ -3041,10 +3076,26 @@ function tickAI(dt2) {
   });
 }
 
-// ---- captureKP поддерживает faction-аргумент ----
-function captureKP(k, factionArg) {
+// ---- captureKP с дипломатическими последствиями ----
+function captureKP(k, factionArg, force) {
   const f = factionArg || myFaction;
   if (!f || k.owner === f) return false;
+
+  const prevOwner = k.owner;
+
+  // Проверяем отношения с текущим владельцем
+  if (!force && prevOwner !== 'neutral') {
+    const rel = getRelation(f, prevOwner);
+    if (rel === 'allied' || rel === 'friendly') {
+      // Захват дружественной/союзной территории — ухудшаем отношения
+      worsenRelation(f, prevOwner);
+      // При союзе — ещё раз (был союз → стала дружба → нейтрал за два шага)
+      if (rel === 'allied') worsenRelation(f, prevOwner);
+      // Всё равно захватываем, но с последствиями
+    }
+    // Если уже hostile/war — захватываем без доп. последствий
+  }
+
   k.owner = f;
   const c = kpColor(k);
   k.ringMat.color.setHex(c);
@@ -3054,67 +3105,59 @@ function captureKP(k, factionArg) {
   return true;
 }
 
-// ---- Проверка уничтожения группировки ----
-// Если все КР вокруг главной базы фракции заняты одним врагом — база переходит к нему,
-// фракция ликвидируется: её юниты гибнут, КР остаются у захватчика.
+// ---- Уничтожение группировки — ТОЛЬКО при потере ГЛАВНОЙ домашней базы ----
 function checkBaseElimination() {
-  const SURROUND_RADIUS = 60; // радиус «окружения» базы
+  const SURROUND_RADIUS = 55;
 
-  for (const base of KEYPOINTS.filter(k => k.type === 'base' && k.owner !== 'neutral')) {
-    const faction = base.owner;
+  for (const fac of Object.keys(FACTIONS)) {
+    // Ищем именно home-зону
+    const homeZoneName = FACTION_HOME[fac];
+    if (!homeZoneName) continue;
 
-    // KP вокруг базы (не считая саму базу)
-    const nearby = KEYPOINTS.filter(k =>
-      k !== base &&
-      dist2d(base.wx, base.wz, k.wx, k.wz) < SURROUND_RADIUS
+    const homeBase = KEYPOINTS.find(k =>
+      k.type === 'base' && k.owner === fac &&
+      ZONES[k.zi]?.en === homeZoneName
     );
-    if (nearby.length === 0) continue;
+    if (!homeBase) continue; // home-база уже потеряна — группировка либо уже ликвидирована, либо ещё борется
 
-    // Считаем сколько КР вокруг принадлежат одному врагу
+    // Все KP вокруг home-базы
+    const nearby = KEYPOINTS.filter(k =>
+      k !== homeBase &&
+      dist2d(homeBase.wx, homeBase.wz, k.wx, k.wz) < SURROUND_RADIUS
+    );
+    if (nearby.length < 3) continue;
+
+    // Считаем только KP занятые врагами (не нейтральные, не свои)
+    const enemyNearby = nearby.filter(k => k.owner !== fac && k.owner !== 'neutral');
+    if (enemyNearby.length < 3) continue;
+    if (enemyNearby.length < nearby.filter(k=>k.owner!=='neutral').length * 0.8) continue;
+
+    // Кто держит большинство?
     const counts = {};
-    for (const k of nearby) {
-      if (k.owner === faction || k.owner === 'neutral') continue;
-      counts[k.owner] = (counts[k.owner] || 0) + 1;
+    for (const k of enemyNearby) counts[k.owner] = (counts[k.owner]||0) + 1;
+    const [enemy, cnt] = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+    if (cnt < 3) continue;
+    // Должен держать >60% вражеских KP вокруг
+    if (cnt / enemyNearby.length < 0.6) continue;
+
+    // Окружение home-базы! Группировка уничтожена
+    const loserName  = FACTIONS[fac]?.name  || fac;
+    const winnerName = FACTIONS[enemy]?.name || enemy;
+    const winCol = '#' + (FACTIONS[enemy]?.color ?? 0xaaaaaa).toString(16).padStart(6,'0');
+
+    logEvent(`💀 ${loserName} уничтожены! ${winnerName} захватили их земли`, winCol);
+
+    // Все KP проигравшего → победителю
+    for (const k of KEYPOINTS) {
+      if (k.owner !== fac) continue;
+      k.owner = enemy;
+      k.ringMat.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
+      if (k.top) k.top.material.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
     }
-
-    // Ищем врага который держит ВСЕ ненейтральные соседние КР
-    for (const [enemy, cnt] of Object.entries(counts)) {
-      const nonNeutralNearby = nearby.filter(k => k.owner !== 'neutral');
-      if (nonNeutralNearby.length === 0) continue;
-      const allEnemy = nonNeutralNearby.every(k => k.owner === enemy);
-      if (!allEnemy || cnt < 3) continue; // минимум 3 КР чтобы считалось окружением
-
-      // Окружение! База переходит к врагу
-      const loserName  = FACTIONS[faction]?.name  || faction;
-      const winnerName = FACTIONS[enemy]?.name || enemy;
-      const winCol = '#' + (FACTIONS[enemy]?.color ?? 0xaaaaaa).toString(16).padStart(6,'0');
-
-      logEvent(`💀 ${loserName} окружены и уничтожены! Базу занял ${winnerName}`, winCol);
-
-      // Передаём базу победителю
-      base.owner = enemy;
-      base.ringMat.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
-      if (base.top) base.top.material.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
-
-      // Все остальные КР проигравшего → победителю
-      for (const k of KEYPOINTS) {
-        if (k.owner !== faction) continue;
-        k.owner = enemy;
-        k.ringMat.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
-        if (k.top) k.top.material.color.setHex(FACTIONS[enemy]?.color ?? 0xaaaaaa);
-      }
-
-      // Убиваем всех юнитов проигравшей фракции
-      for (const u of [...allUnits]) {
-        if (u.faction === faction) removeUnit(u);
-      }
-
-      // Очки ИИ проигравшего обнуляем
-      AI_POINTS[faction] = 0;
-
-      updateResources();
-      break;
-    }
+    // Убиваем юнитов проигравшего
+    for (const u of [...allUnits]) if (u.faction === fac) removeUnit(u);
+    AI_POINTS[fac] = 0;
+    updateResources();
   }
 }
 

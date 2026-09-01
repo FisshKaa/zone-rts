@@ -2401,7 +2401,7 @@ buildings.instanceColor.needsUpdate = true;
    Каждый юнит = 3 вокселя (ноги + тело + голова)
    Меш пересобирается каждый кадр по позиции allUnits[]
    ============================================================ */
-const MAX_VOX_UNITS = 600; // макс юнитов × 3 вокселя
+const MAX_VOX_UNITS = 1200; // 4 вокселя на юнита + мутанты // макс юнитов × 3 вокселя
 const unitVoxGeo = new THREE.BoxGeometry(1.2, 1, 1.2);
 const unitVoxMat = new THREE.MeshLambertMaterial();
 const unitVoxMesh = new THREE.InstancedMesh(unitVoxGeo, unitVoxMat, MAX_VOX_UNITS);
@@ -2417,10 +2417,12 @@ let showVoxUnits = true;
 function updateUnitVoxels(visibleSet) {
   if (!showVoxUnits) { unitVoxMesh.count = 0; unitVoxMesh.instanceMatrix.needsUpdate = true; return; }
 
+  const t = performance.now() * 0.001;
   let idx = 0;
-  const unitsToShow = myFaction
-    ? allUnits.filter(u => !visibleSet || visibleSet.has(u.id))
-    : allUnits;
+
+  const unitsToShow = (!myFaction || !window._fogEnabled)
+    ? allUnits
+    : allUnits.filter(u => !visibleSet || visibleSet.has(u.id));
 
   for (const u of unitsToShow) {
     if (idx + 3 > MAX_VOX_UNITS) break;
@@ -2428,46 +2430,90 @@ function updateUnitVoxels(visibleSet) {
     const col = FACTIONS[u.faction]?.color ?? 0xaaaaaa;
     unitVoxCol.setHex(col);
 
-    // Ноги (1×1×1 снизу)
-    unitVoxDummy.position.set(u.x, gTop + 0.5, u.z);
-    unitVoxDummy.scale.set(0.7, 0.8, 0.7);
-    unitVoxDummy.rotation.set(0, 0, 0);
-    unitVoxDummy.updateMatrix();
-    unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
-    unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(0.7));
-    idx++;
+    // Анимация: фаза шага зависит от позиции юнита (детерминированная)
+    const isMoving = u.state === 'moving' || u.state === 'capturing' || u.state === 'collecting' || u.state === 'returning' || u.state === 'trading';
+    const isGuard  = u.state === 'guarding';
+    const phase    = (t * (isMoving ? 3.5 : isGuard ? 1.2 : 0.6) + u.id * 1.37) % (Math.PI * 2);
+    const bobY     = isMoving ? Math.abs(Math.sin(phase)) * 0.35 : Math.sin(phase) * 0.06;
+    const legSwing = isMoving ? Math.sin(phase) * 0.28 : 0;
+    const bodyLean = isMoving ? Math.sin(phase * 0.5) * 0.04 : 0;
 
-    // Тело (шире, по центру)
-    unitVoxDummy.position.set(u.x, gTop + 1.4, u.z);
-    unitVoxDummy.scale.set(1.0, 1.0, 1.0);
+    // Направление движения для поворота
+    let facingAngle = u._facing || 0;
+    if (isMoving && u.targetPos) {
+      const dx = u.targetPos.x - u.x, dz = u.targetPos.z - u.z;
+      if (Math.abs(dx) + Math.abs(dz) > 0.1) {
+        u._facing = Math.atan2(dx, dz);
+        facingAngle = u._facing;
+      }
+    }
+
+    // --- НОГИ: два вокселя, качаются в противофазе ---
+    for (let leg = 0; leg < 2; leg++) {
+      if (idx >= MAX_VOX_UNITS) break;
+      const legX = (leg === 0 ? -0.3 : 0.3);
+      const swing = leg === 0 ? legSwing : -legSwing;
+      unitVoxDummy.position.set(
+        u.x + Math.cos(facingAngle) * legX,
+        gTop + 0.4 + bobY + Math.abs(swing) * 0.15,
+        u.z + Math.sin(facingAngle) * legX
+      );
+      unitVoxDummy.scale.set(0.55, 0.75 + Math.abs(swing) * 0.2, 0.55);
+      unitVoxDummy.rotation.set(swing * 0.6, facingAngle, 0);
+      unitVoxDummy.updateMatrix();
+      unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
+      unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(0.65));
+      idx++;
+    }
+
+    // --- ТЕЛО ---
+    if (idx >= MAX_VOX_UNITS) break;
+    unitVoxDummy.position.set(u.x, gTop + 1.35 + bobY, u.z);
+    unitVoxDummy.scale.set(0.9, 1.0, 0.75);
+    unitVoxDummy.rotation.set(bodyLean, facingAngle, 0);
     unitVoxDummy.updateMatrix();
     unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
     unitVoxMesh.setColorAt(idx, unitVoxCol);
     idx++;
 
-    // Голова (чуть меньше, сверху)
-    unitVoxDummy.position.set(u.x, gTop + 2.3, u.z);
-    unitVoxDummy.scale.set(0.8, 0.8, 0.8);
+    // --- ГОЛОВА: чуть поворачивается ---
+    if (idx >= MAX_VOX_UNITS) break;
+    const headBob = isGuard ? Math.sin(phase * 0.8) * 0.04 : 0;
+    unitVoxDummy.position.set(u.x, gTop + 2.15 + bobY + headBob, u.z);
+    unitVoxDummy.scale.set(0.72, 0.72, 0.72);
+    unitVoxDummy.rotation.set(0, facingAngle + Math.sin(phase * 0.3) * 0.15, 0);
     unitVoxDummy.updateMatrix();
     unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
-    // Голова — цвет фракции чуть светлее
-    unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(1.3));
+    unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(1.35));
     idx++;
   }
 
-  // Мутанты — тёмно-красные
+  // Мутанты — красные, пульсируют и скачут
   for (const m of mutants) {
-    if (idx + 3 > MAX_VOX_UNITS) break;
+    if (idx + 4 > MAX_VOX_UNITS) break;
     const gTop = topAtWorld(m.x, m.z);
+    const mPhase = (t * 4.2 + (m.id || 0) * 2.1) % (Math.PI * 2);
+    const mBob = Math.abs(Math.sin(mPhase)) * 0.5;
+    const mPulse = 0.85 + 0.15 * Math.sin(mPhase * 2);
+
+    // Тело мутанта — широкое, пульсирует
     unitVoxCol.setHex(0xcc2222);
-    for (let ly = 0; ly < 3; ly++) {
-      unitVoxDummy.position.set(m.x, gTop + 0.5 + ly * 0.9, m.z);
-      unitVoxDummy.scale.set(1.1 - ly*0.1, 0.85, 1.1 - ly*0.1);
-      unitVoxDummy.updateMatrix();
-      unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
-      unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(0.6 + ly * 0.2));
-      idx++;
-    }
+    unitVoxDummy.position.set(m.x, gTop + 0.7 + mBob, m.z);
+    unitVoxDummy.scale.set(1.2 * mPulse, 0.9, 1.2 * mPulse);
+    unitVoxDummy.rotation.set(0, mPhase * 0.5, 0);
+    unitVoxDummy.updateMatrix();
+    unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
+    unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(0.8));
+    idx++;
+
+    // «Голова» мутанта
+    unitVoxDummy.position.set(m.x, gTop + 1.7 + mBob, m.z);
+    unitVoxDummy.scale.set(0.9 * mPulse, 1.0, 0.9 * mPulse);
+    unitVoxDummy.rotation.set(Math.sin(mPhase)*0.2, -mPhase*0.3, 0);
+    unitVoxDummy.updateMatrix();
+    unitVoxMesh.setMatrixAt(idx, unitVoxDummy.matrix);
+    unitVoxMesh.setColorAt(idx, unitVoxCol.clone().multiplyScalar(1.1));
+    idx++;
   }
 
   unitVoxMesh.count = idx;
@@ -3182,11 +3228,80 @@ function tickPassiveIncome(dt2) {
     let income = 0;
     for (const k of KEYPOINTS) {
       if (k.owner !== fac) continue;
-      if (k.type === 'base')       income += 2.0;   // база: 2/сек
-      else if (k.type === 'anomaly') income += 1.0; // аномалия: 1/сек
-      else                           income += 0.5; // поселение/узел: 0.5/сек
+      if (k.type === 'base')         income += 2.0;
+      else if (k.type === 'anomaly') income += 1.0;
+      else                           income += 0.5;
     }
-    AI_POINTS[fac] += income * dt2;
+    // Бонус от союзников: +10% дохода за каждого союзника
+    const allies = Object.keys(FACTIONS).filter(b =>
+      b !== fac && getRelation(fac, b) === 'allied'
+    ).length;
+    income *= (1 + allies * 0.10);
+    AI_POINTS[fac] = (AI_POINTS[fac] || 0) + income * dt2;
+  }
+}
+
+// ---- Дипломатический ИИ: группировки иногда меняют отношения ----
+let diplomacyTimer = 0;
+function tickDiplomacy(dt2) {
+  diplomacyTimer += dt2;
+  if (diplomacyTimer < 45) return; // раз в 45 сек
+  diplomacyTimer = 0;
+
+  const facs = Object.keys(FACTIONS);
+  const a = facs[Math.floor(Math.random() * facs.length)];
+  const b = facs[Math.floor(Math.random() * facs.length)];
+  if (a === b) return;
+
+  const rel = getRelation(a, b);
+  const aKP = KEYPOINTS.filter(k => k.owner === a).length;
+  const bKP = KEYPOINTS.filter(k => k.owner === b).length;
+
+  // Слабая фракция ищет союзников среди нейтральных
+  if (aKP < 2 && rel === 'neutral' && Math.random() < 0.25) {
+    RELATIONS[a][b] = 'friendly'; RELATIONS[b][a] = 'friendly';
+    logEvent(`🤝 ${FACTIONS[a]?.name} и ${FACTIONS[b]?.name} заключили перемирие`, '#86b8d6');
+    return;
+  }
+  // Сильная фракция давит на слабую нейтральную — та становится враждебной
+  if (aKP > bKP * 2 && rel === 'neutral' && Math.random() < 0.15) {
+    RELATIONS[a][b] = 'hostile'; RELATIONS[b][a] = 'hostile';
+    logEvent(`⚔ ${FACTIONS[a]?.name} объявили о враждебности к ${FACTIONS[b]?.name}`, '#c46a3a');
+  }
+}
+
+// ---- Отступление: юнит с <20% HP идёт к ближайшей своей базе ----
+function tryRetreat(u) {
+  if (u.hp / u.maxHp > 0.20) return false;
+  if (u.state === 'retreating') return true;
+  const base = getBase(u.faction);
+  if (!base) return false;
+  u.state = 'retreating';
+  u.targetPos = { x: base.wx + (Math.random()-0.5)*10, z: base.wz + (Math.random()-0.5)*10 };
+  u._wp = null;
+  return true;
+}
+
+// ---- Союзная помощь: если союзника атакуют — ближайший наш солдат идёт помочь ----
+function tickAllySupport(dt2) {
+  for (const u of allUnits) {
+    if (u.type !== 'soldier' || u.state === 'capturing' || u.state === 'retreating') continue;
+    // Ищем союзника которого атакуют в радиусе 120
+    const allyInTrouble = allUnits.find(v => {
+      if (v.faction === u.faction) return false;
+      if (getRelation(u.faction, v.faction) !== 'allied') return false;
+      if (dist2d(u.x, u.z, v.x, v.z) > 120) return false;
+      // Союзника атакуют если рядом с ним есть враг
+      return allUnits.some(e =>
+        e.faction !== v.faction && e.faction !== u.faction &&
+        getRelation(v.faction, e.faction) === 'war' &&
+        dist2d(v.x, v.z, e.x, e.z) < 40
+      );
+    });
+    if (allyInTrouble && Math.random() < 0.1) { // не все бегут, только часть
+      u.targetPos = { x: allyInTrouble.x, z: allyInTrouble.z };
+      u.state = 'moving'; u._wp = null;
+    }
   }
 }
 
@@ -3398,11 +3513,26 @@ function checkBaseElimination() {
 // ---- главный тик игры ----
 function tickGame(dt2, now) {
   tickPassiveIncome(dt2);
-  // тикаем всех юнитов (ИИ)
-  for (const u of [...allUnits]) tickUnit(u, dt2);
-
-  // тик ИИ-закупок раз в 20 сек
+  tickDiplomacy(dt2);
   if (now - lastAITick > 8000) { tickAI(dt2); lastAITick = now; }
+  tickAllySupport(dt2);
+
+  // Отступление юнитов с низким HP
+  for (const u of [...allUnits]) {
+    if (tryRetreat(u)) {
+      const arrived = moveUnit(u, dt2);
+      if (arrived) {
+        u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3 * dt2); // лечимся на базе
+        if (u.hp >= u.maxHp * 0.6) { u.state = 'idle'; u.timer = 0; } // вернулись в строй
+      }
+    }
+  }
+
+  // тикаем всех юнитов (ИИ)
+  for (const u of [...allUnits]) {
+    if (u.state === 'retreating') continue; // уже обработан выше
+    tickUnit(u, dt2);
+  }
 
   // мутанты
   tickMutants(dt2);
@@ -3451,9 +3581,10 @@ function tickGame(dt2, now) {
       el.style.display = 'none';
     }
   }
-  // мутанты — всегда видны (аномальные существа)
+  // мутанты — видны только если DOM-маркеры включены
   for (const m of mutants) {
     const el = getOrCreateMarker('m'+m.id, true);
+    if (!window._showDOMUnits) { el.style.display = 'none'; continue; }
     tmpVec.set(m.x, topAtWorld(m.x,m.z)+2, m.z).project(camera);
     if (tmpVec.z < 1 && Math.abs(tmpVec.x)<1.2 && Math.abs(tmpVec.y)<1.2) {
       el.style.display='flex';
